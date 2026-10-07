@@ -41,8 +41,6 @@ export function Sheet() {
 
     toggleSkill,
     setResourceUsed,
-    setClassLevel,
-    setSubclass,
     toggleRage,
     rest,
   } = useCharacter();
@@ -232,58 +230,60 @@ export function Sheet() {
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
 
-        <section className="flex flex-wrap items-start gap-3">
-          {c.classes.map((k) => {
-            const def = CLASSES[k.classId];
-            const unlock = def.subclassLevel[c.ruleset];
-            return (
-              <div key={k.classId} className="panel flex flex-wrap items-center gap-3 !py-2">
-                <div className="font-semibold">{def.name}</div>
-                <label className="flex items-center gap-1 text-sm text-muted">
-                  Level
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    aria-label={`${def.name} level`}
-                    className="field w-16"
-                    value={k.level}
-                    onChange={(e) => setClassLevel(k.classId, Number(e.target.value) || 1)}
-                  />
-                </label>
-                {k.level >= unlock ? (
-                  <select
-                    aria-label={`${def.name} subclass`}
-                    className="field text-sm"
-                    value={k.subclassId ?? ""}
-                    onChange={(e) => setSubclass(k.classId, e.target.value)}
-                  >
-                    <option value="">Choose subclass…</option>
-                    {def.subclasses[c.ruleset].map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-xs text-muted">Subclass at level {unlock}</span>
-                )}
-              </div>
-            );
-          })}
-          <div className="ml-auto flex items-start gap-3">
-            <div className="flex gap-2">
-            <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
-              Short rest
-            </button>
-            <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
-              Long rest
-            </button>
+        <section className="flex flex-wrap items-stretch gap-3">
+          <div className="flex flex-col gap-2">
+            {c.classes.map((k) => {
+              const def = CLASSES[k.classId];
+              const sub = k.level >= def.subclassLevel[c.ruleset] ? def.subclasses[c.ruleset].find((s) => s.id === k.subclassId) : undefined;
+              return (
+                <div key={k.classId} className="panel !px-4 !py-2">
+                  <div className="font-semibold">
+                    {def.name} <span className="font-normal text-muted">Level {k.level}</span>
+                  </div>
+                  {sub && <div className="text-sm text-muted">{sub.name}</div>}
+                </div>
+              );
+            })}
+          </div>
+          <section aria-label="Abilities" className="grid min-w-0 flex-1 grid-cols-3 gap-2 sm:grid-cols-6">
+            {ABILITIES.map((a) => {
+              const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setAbilityOpen(a)}
+                  aria-label={`${a} ability details`}
+                  className="panel flex flex-col items-center justify-center !p-1.5 text-center transition hover:border-accent"
+                >
+                  <div className="label-caps">
+                    {a}
+                    {hasAdvantage(a, "saves") && <span title="Advantage on saves" className="ml-1 font-bold text-danger">▲</span>}
+                  </div>
+                  <div className="text-xl font-bold leading-tight">{signed(abilityMod(abilityScore(c, a)))}</div>
+                  <div className={`text-xs ${c.abilityOverrides[a] !== undefined ? "font-semibold text-accent" : "text-muted"}`}>
+                    {abilityScore(c, a)}
+                  </div>
+                  <div className="mt-1 w-full border-t border-line pt-1 text-[11px] text-muted">
+                    Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
+                    {proficient && <span title="Proficient"> ●</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </section>
+          <div className="flex items-start gap-2">
+            <div className="flex flex-col gap-2">
+              <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
+                Short rest
+              </button>
+              <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
+                Long rest
+              </button>
             </div>
             <HpBox c={c} />
           </div>
         </section>
-
         <section className="panel grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] items-stretch gap-y-4 !p-0">
           {[
             barbarian && (
@@ -326,31 +326,7 @@ export function Sheet() {
               </div>
             ))}
         </section>
-        <section aria-label="Abilities" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {ABILITIES.map((a) => {
-            const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
-            return (
-              <button
-                key={a}
-                type="button"
-                onClick={() => setAbilityOpen(a)}
-                aria-label={`${a} ability details`}
-                className="panel text-center transition hover:border-accent"
-              >
-                <div className="label-caps">{a}</div>
-                <div className="text-3xl font-bold">{signed(abilityMod(abilityScore(c, a)))}</div>
-                <div className={`text-sm ${c.abilityOverrides[a] !== undefined ? "font-semibold text-accent" : "text-muted"}`}>
-                  {abilityScore(c, a)}
-                </div>
-                <div className="mt-2 border-t border-line pt-2 text-xs text-muted">
-                  Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
-                  {proficient && <span title="Proficient"> ●</span>}
-                  {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-danger">ADV</span>}
-                </div>
-              </button>
-            );
-          })}
-        </section>
+
 
 
         <div className="grid gap-5 md:grid-cols-2">
