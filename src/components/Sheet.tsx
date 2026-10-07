@@ -21,11 +21,13 @@ import { featById } from "@/engine/data/feats";
 import { SPECIES } from "@/engine/data/species";
 import { downloadCharacter, parseCharacter } from "@/engine/file";
 import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
-import { loadSavedCharacter, useCharacter } from "@/engine/store";
+import { loadActiveCharacter } from "@/engine/storage";
+import { useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Ability, type Skill } from "@/engine/types";
 import { AbilityDialog } from "./AbilityDialog";
 import { HpBox } from "./HpBox";
 import { LevelUpDialog } from "./LevelUpDialog";
+import { SavedCharacters } from "./SavedCharacters";
 import { ThemeToggle } from "./ThemeToggle";
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
@@ -50,11 +52,25 @@ export function Sheet() {
   const [abilityOpen, setAbilityOpen] = useState<Ability | null>(null);
   const [editSkills, setEditSkills] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menuOpen]);
   const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   useEffect(() => {
     if (!useCharacter.getState().character) {
-      const saved = loadSavedCharacter();
+      const saved = loadActiveCharacter();
       if (saved) load(saved);
     }
   }, [load]);
@@ -109,6 +125,10 @@ export function Sheet() {
           </button>
         </div>
         {error && <p className="text-danger">{error}</p>}
+        <section className="panel max-w-md !p-2">
+          <h2 className="label-caps px-3 py-2">Saved characters</h2>
+          <SavedCharacters onPick={load} />
+        </section>
         {fileInput}
       </main>
     );
@@ -144,7 +164,7 @@ export function Sheet() {
             Level up
           </button>
           <ThemeToggle />
-          <div className="relative">
+          <div ref={menuRef} className="relative">
             <button
               aria-label="Menu"
               aria-haspopup="menu"
@@ -156,8 +176,7 @@ export function Sheet() {
             </button>
             {menuOpen && (
               <>
-                <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                <div role="menu" className="panel absolute right-0 z-30 mt-2 flex w-52 flex-col gap-1 !p-1 shadow-lg">
+                <div role="menu" className="panel absolute right-0 z-30 mt-2 flex w-72 flex-col gap-1 !p-1 shadow-lg max-h-[70vh] overflow-y-auto">
                   <button
                     role="menuitem"
                     className="rounded px-3 py-2 text-left text-sm hover:bg-line/40"
@@ -177,12 +196,26 @@ export function Sheet() {
                     }}
                   >
                     Load from file
-                  </button>                  <Link
+                  </button>                  <div className="my-1 border-t border-line" />
+                  <div className="label-caps px-3 pt-1">Characters</div>
+                  <SavedCharacters
+                    currentId={c.id}
+                    onPick={(s) => {
+                      setMenuOpen(false);
+                      load(s);
+                    }}
+                    onDeleteCurrent={() => {
+                      setMenuOpen(false);
+                      useCharacter.setState({ character: null });
+                    }}
+                  />
+                  <div className="my-1 border-t border-line" />
+                  <Link
                     href="/create"
                     role="menuitem"
                     className="rounded px-3 py-2 text-sm hover:bg-line/40"
-                    onClick={(e) => {
-                      if (!confirm("Start a new character? The current one stays saved until you finish creating the new one.")) e.preventDefault();
+                    onClick={() => {
+                      setMenuOpen(false);
                     }}
                   >
                     New character
@@ -251,43 +284,47 @@ export function Sheet() {
           </div>
         </section>
 
-        <section className="panel flex flex-wrap items-center gap-x-8 gap-y-3 !py-3">
-          {barbarian && (
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-lg font-bold">
-                <input
-                  type="checkbox"
-                  className="h-5 w-5 accent-[var(--accent)]"
-                  checked={c.rageActive}
-                  disabled={!c.rageActive && !canStartRage(c)}
-                  onChange={toggleRage}
-                />
-                Rage
-              </label>
-              {Number.isFinite(rageMax) ? (
-                <div className="flex gap-1.5" aria-label={`${Math.max(0, rageMax - rageUsed)} of ${rageMax} rages left`}>
-                  {Array.from({ length: rageMax }, (_, i) => (
-                    <input key={i} type="checkbox" readOnly tabIndex={-1} checked={i < rageUsed} className="pointer-events-none h-4 w-4 accent-[var(--accent)]" />
-                  ))}
-                </div>
-              ) : (
-                <span className="text-sm text-muted">Unlimited</span>
-              )}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Stat title="Armor class" value={String(armorClass(c))} />
-            <Stat title="Initiative" value={signed(initiative(c))} />
-            <Stat title="Speed" value={`${speed(c)} ft`} />
-            <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
-            {dc !== null && <Stat title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />}
-            {fx.resistances.length > 0 && <Stat title="Resistances" value={fx.resistances.map((r) => r.slice(0, 5)).join(", ")} />}
-          </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Stat title="Passive Perception" value={String(passiveScore(c, "perception"))} />
-            <Stat title="Passive Investigation" value={String(passiveScore(c, "investigation"))} />
-            <Stat title="Passive Insight" value={String(passiveScore(c, "insight"))} />
-          </div>
+        <section className="panel grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] items-stretch gap-y-4 !p-0">
+          {[
+            barbarian && (
+              <div key="rage" className="flex flex-col items-center justify-center gap-2">
+                <label className="flex items-center gap-2 text-lg font-bold">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-[var(--accent)]"
+                    checked={c.rageActive}
+                    disabled={!c.rageActive && !canStartRage(c)}
+                    onChange={toggleRage}
+                  />
+                  Rage
+                </label>
+                {Number.isFinite(rageMax) ? (
+                  <div className="flex gap-1.5" aria-label={`${Math.max(0, rageMax - rageUsed)} of ${rageMax} rages left`}>
+                    {Array.from({ length: rageMax }, (_, i) => (
+                      <input key={i} type="checkbox" readOnly tabIndex={-1} checked={i < rageUsed} className="pointer-events-none h-4 w-4 accent-[var(--accent)]" />
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted">Unlimited</span>
+                )}
+              </div>
+            ),
+            <Stat key="ac" title="Armor class" value={String(armorClass(c))} />,
+            <Stat key="init" title="Initiative" value={signed(initiative(c))} />,
+            <Stat key="speed" title="Speed" value={`${speed(c)} ft`} />,
+            <Stat key="prof" title="Proficiency" value={signed(proficiencyBonus(level))} />,
+            dc !== null && <Stat key="dc" title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />,
+            fx.resistances.length > 0 && <Stat key="res" title="Resistances" value={fx.resistances.map((r) => r[0]).join(" / ")} />,
+            <Stat key="pp" title="Passive Perception" value={String(passiveScore(c, "perception"))} />,
+            <Stat key="pi" title="Passive Investigation" value={String(passiveScore(c, "investigation"))} />,
+            <Stat key="pin" title="Passive Insight" value={String(passiveScore(c, "insight"))} />,
+          ]
+            .filter(Boolean)
+            .map((cell, i) => (
+              <div key={i} className={`flex flex-col justify-center px-3 py-3 ${i > 0 ? "sm:border-l sm:border-line" : ""}`}>
+                {cell}
+              </div>
+            ))}
         </section>
         <section aria-label="Abilities" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {ABILITIES.map((a) => {
@@ -445,7 +482,7 @@ export function Sheet() {
 
 function Stat({ title, value }: { title: string; value: string }) {
   return (
-    <div>
+    <div className="text-center">
       <div className="label-caps">{title}</div>
       <div className="text-xl font-bold">{value}</div>
     </div>

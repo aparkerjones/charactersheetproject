@@ -105,6 +105,7 @@ const score = z.number().int().min(1).max(30);
 export const CharacterSchema = z
   .object({
     version: z.literal(2),
+    id: z.string().default(() => crypto.randomUUID()),
     ruleset: z.enum(RULESETS),
     name: z.string(),
     speciesId: z.string(),

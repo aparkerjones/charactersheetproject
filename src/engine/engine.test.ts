@@ -7,6 +7,7 @@ import type { Character } from "./types";
 
 const base = (over: Partial<Character> = {}): Character => ({
   version: 2,
+  id: "test",
   ruleset: "2024",
   name: "T",
   speciesId: "human",

@@ -174,6 +174,7 @@ export function buildCharacter(d: Draft): Character {
   const feats = [bg?.featId, d.ruleset === "2014" ? d.optionalFeatId : null].filter((f): f is string => Boolean(f));
   const character: Character = {
     version: 2,
+    id: crypto.randomUUID(),
     ruleset: d.ruleset,
     name: d.name.trim(),
     speciesId: d.speciesId,

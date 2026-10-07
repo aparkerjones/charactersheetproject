@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { maxHp } from "./calc";
 import { CLASSES } from "./data/classes";
 import { applyDamage, applyHealing, recoverHitDice } from "./hp";
-import { parseCharacter, serializeCharacter } from "./file";
+import { saveCharacter } from "./storage";
 import { canStartRage } from "./rage";
 import type { Ability, Character } from "./types";
 
@@ -110,25 +110,8 @@ export const useCharacter = create<State>((set, get) => {
   };
 });
 
-const STORAGE_KEY = "dnd-character";
-
-export function loadSavedCharacter(): Character | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? parseCharacter(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
 if (typeof window !== "undefined") {
   useCharacter.subscribe((s, prev) => {
-    if (s.character && s.character !== prev.character) {
-      try {
-        localStorage.setItem(STORAGE_KEY, serializeCharacter(s.character));
-      } catch {
-        // storage full or unavailable; the download option still works
-      }
-    }
+    if (s.character && s.character !== prev.character) saveCharacter(s.character);
   });
 }
