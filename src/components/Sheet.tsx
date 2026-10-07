@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   abilityMod,
   abilityScore,
+  armorClass,
+  passiveScore,
   initiative,
   proficiencyBonus,
   saveBonus,
@@ -222,16 +224,43 @@ export function Sheet() {
           </section>
         )}
 
+        <section aria-label="Abilities" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {ABILITIES.map((a) => {
+            const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
+            return (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAbilityOpen(a)}
+                aria-label={`${a} ability details`}
+                className="panel text-center transition hover:border-accent"
+              >
+                <div className="label-caps">{a}</div>
+                <div className="text-3xl font-bold">{signed(abilityMod(abilityScore(c, a)))}</div>
+                <div className={`text-sm ${c.abilityOverrides[a] !== undefined ? "font-semibold text-accent" : "text-muted"}`}>
+                  {abilityScore(c, a)}
+                </div>
+                <div className="mt-2 border-t border-line pt-2 text-xs text-muted">
+                  Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
+                  {proficient && <span title="Proficient"> ●</span>}
+                  {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-danger">ADV</span>}
+                </div>
+              </button>
+            );
+          })}
+        </section>
+
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <HpPanel c={c} />
 
           <div className="space-y-5">
             <section className="panel">
               <h2 className="panel-title">Combat</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+                <Stat title="Armor class" value={String(armorClass(c))} />
                 <Stat title="Initiative" value={signed(initiative(c))} />
                 <Stat title="Speed" value={`${speed(c)} ft`} />
+                <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
                 {dc !== null ? (
                   <Stat title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />
                 ) : (
@@ -241,35 +270,15 @@ export function Sheet() {
             </section>
 
             <section className="panel">
-              <h2 className="panel-title">Abilities and saving throws</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-                {ABILITIES.map((a) => {
-                  const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
-                  return (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => setAbilityOpen(a)}
-                      aria-label={`${a} ability details`}
-                      className="rounded-lg border border-line bg-surface-2 p-3 text-center transition hover:border-accent"
-                    >
-                      <div className="label-caps">{a}</div>
-                      <div className="text-2xl font-bold">{signed(abilityMod(abilityScore(c, a)))}</div>
-                      <div className={`text-sm ${c.abilityOverrides[a] !== undefined ? "font-semibold text-accent" : "text-muted"}`}>
-                        {abilityScore(c, a)}
-                      </div>
-                      <div className="mt-2 text-xs text-muted">
-                        Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
-                        {proficient && <span title="Proficient"> ●</span>}
-                        {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-danger">ADV</span>}
-                      </div>
-                    </button>                  );
-                })}
+              <h2 className="panel-title">Passive senses</h2>
+              <div className="grid grid-cols-3 gap-4">
+                <Stat title="Perception" value={String(passiveScore(c, "perception"))} />
+                <Stat title="Investigation" value={String(passiveScore(c, "investigation"))} />
+                <Stat title="Insight" value={String(passiveScore(c, "insight"))} />
               </div>
             </section>
           </div>
         </div>
-
         <div className="grid gap-5 md:grid-cols-2">
           <section className="panel">
             <div className="mb-2 flex items-center justify-between">

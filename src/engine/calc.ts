@@ -72,3 +72,13 @@ export function spellSaveDc(c: Character): number | null {
   const caster = c.classes.map((k) => CLASSES[k.classId].spellcasting).find(Boolean);
   return caster ? 8 + proficiencyBonus(totalLevel(c)) + abilityMod(abilityScore(c, caster.ability)) : null;
 }
+
+// Best unarmored formula available. Equipment will feed armor in later.
+export function armorClass(c: Character): number {
+  const dex = abilityMod(abilityScore(c, "dex"));
+  const options = [10 + dex];
+  if (classLevel(c, "barbarian") > 0) options.push(10 + dex + abilityMod(abilityScore(c, "con")));
+  return Math.max(...options);
+}
+
+export const passiveScore = (c: Character, skill: Skill) => 10 + skillBonus(c, skill);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abilityMod, abilityScore, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
+import { abilityMod, abilityScore, armorClass, passiveScore, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
 import { activeEffects, canStartRage, rageDamage, rageUses } from "./rage";
 import { applyDamage, applyHealing, grantTempHp, hitDicePool, recoverHitDice } from "./hp";
 import { buildCharacter, emptyDraft, finalAbilities, multiclassIssues, stepIssues, type Draft } from "./creation";
@@ -204,5 +204,24 @@ describe("ability override", () => {
     expect(abilityScore(c, "con")).toBe(18);
     expect(abilityScore(c, "str")).toBe(10);
     expect(saveBonus(c, "con")).toBe(abilityMod(18) + proficiencyBonus(1));
+  });
+});
+
+describe("armor class and passives", () => {
+  it("uses 10 + DEX unarmored, and the better Barbarian formula", () => {
+    const plain = base({ abilities: { ...base().abilities, dex: 14, con: 16 } });
+    const expectedDex = 10 + abilityMod(14);
+    const hasBarb = plain.classes.some((k) => k.classId === "barbarian");
+    expect(armorClass(plain)).toBe(hasBarb ? expectedDex + abilityMod(16) : expectedDex);
+    const rogue = base({ classes: [{ classId: "rogue", level: 1 }], abilities: { ...base().abilities, dex: 14, con: 16 } });
+    expect(armorClass(rogue)).toBe(12);
+    const barb = base({ classes: [{ classId: "barbarian", level: 1 }], abilities: { ...base().abilities, dex: 14, con: 16 } });
+    expect(armorClass(barb)).toBe(15);
+  });
+
+  it("adds proficiency to passive scores", () => {
+    const c = base({ skillProficiencies: ["perception"], abilities: { ...base().abilities, wis: 14 } });
+    expect(passiveScore(c, "perception")).toBe(10 + abilityMod(14) + proficiencyBonus(1));
+    expect(passiveScore(c, "insight")).toBe(10 + abilityMod(14));
   });
 });
