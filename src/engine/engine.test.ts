@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { abilityMod, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
 import { activeEffects, canStartRage, rageDamage, rageUses } from "./rage";
+import { applyDamage, applyHealing, grantTempHp, hitDicePool, recoverHitDice } from "./hp";
 import { buildCharacter, emptyDraft, finalAbilities, multiclassIssues, stepIssues, type Draft } from "./creation";
 import type { Character } from "./types";
 
@@ -16,10 +17,53 @@ const base = (over: Partial<Character> = {}): Character => ({
   skillProficiencies: [],
   expertise: [],
   currentHp: 0,
+  tempHp: 0,
+  hitDiceUsed: {},
+  deathSaves: { successes: 0, failures: 0 },
   resourcesUsed: {},
   rageActive: false,
   notes: "",
   ...over,
+});
+
+describe("hp", () => {
+  const hero = (over: Partial<Character> = {}) =>
+    base({
+      classes: [{ classId: "fighter", level: 4 }],
+      abilities: { ...base().abilities, con: 14 },
+      currentHp: 20,
+      ...over,
+    });
+
+  it("spends temp hp before real hp", () => {
+    const r = applyDamage(hero({ tempHp: 5 }), 8);
+    expect(r).toMatchObject({ tempHp: 0, currentHp: 17 });
+  });
+
+  it("halves damage for resistance and never goes below zero", () => {
+    expect(applyDamage(hero(), 9, true).currentHp).toBe(16);
+    expect(applyDamage(hero({ currentHp: 3 }), 50).currentHp).toBe(0);
+  });
+
+  it("caps healing at max hp and clears death saves", () => {
+    const c = hero({ currentHp: 0, deathSaves: { successes: 1, failures: 2 } });
+    const r = applyHealing(c, 999);
+    expect(r.currentHp).toBe(maxHp(c));
+    expect(r.deathSaves).toEqual({ successes: 0, failures: 0 });
+  });
+
+  it("keeps the higher temp hp instead of stacking", () => {
+    expect(grantTempHp(hero({ tempHp: 6 }), 4)).toBe(6);
+    expect(grantTempHp(hero({ tempHp: 6 }), 9)).toBe(9);
+  });
+
+  it("recovers half the hit dice on a long rest, minimum one", () => {
+    const c = hero({ hitDiceUsed: { fighter: 4 } });
+    expect(recoverHitDice(c, () => 10)).toEqual({ fighter: 2 });
+    const solo = hero({ classes: [{ classId: "fighter", level: 1 }], hitDiceUsed: { fighter: 1 } });
+    expect(recoverHitDice(solo, () => 10)).toEqual({ fighter: 0 });
+    expect(hitDicePool(c)[0]).toEqual({ classId: "fighter", total: 4, used: 4 });
+  });
 });
 
 describe("calc", () => {

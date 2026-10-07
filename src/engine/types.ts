@@ -123,6 +123,11 @@ export const CharacterSchema = z
     skillProficiencies: z.array(z.string()),
     expertise: z.array(z.string()),
     currentHp: z.number().int(),
+    tempHp: z.number().int().min(0).default(0),
+    hitDiceUsed: z.record(z.string(), z.number().int().min(0)).default({}),
+    deathSaves: z
+      .object({ successes: z.number().int().min(0).max(3), failures: z.number().int().min(0).max(3) })
+      .default({ successes: 0, failures: 0 }),
     resourcesUsed: z.record(z.string(), z.number().int().min(0)),
     rageActive: z.boolean(),
     notes: z.string(),

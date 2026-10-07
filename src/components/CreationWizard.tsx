@@ -25,11 +25,9 @@ import { FEATS, featById } from "@/engine/data/feats";
 import { SPECIES } from "@/engine/data/species";
 import { useCharacter } from "@/engine/store";
 import { ABILITIES, RULESETS, type Ability, type Skill } from "@/engine/types";
+import { ThemeToggle } from "./ThemeToggle";
 
 const label = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
-const card = (selected: boolean) =>
-  `rounded border p-3 text-left ${selected ? "border-2 border-black dark:border-white" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`;
-const select = "rounded border bg-transparent p-1";
 
 export function CreationWizard() {
   const router = useRouter();
@@ -61,14 +59,14 @@ export function CreationWizard() {
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Create a character</h1>
-        <Link href="/" className="text-sm underline">
+        <div className="flex items-center gap-3"><ThemeToggle /><Link href="/" className="text-sm underline">
           Cancel
-        </Link>
+        </Link></div>
       </header>
 
       <ol className="flex flex-wrap gap-2 text-sm">
         {STEPS.map((s, i) => (
-          <li key={s.id} className={`rounded px-3 py-1 ${i === step ? "bg-black text-white dark:bg-white dark:text-black" : "border"}`}>
+          <li key={s.id} className={`rounded px-3 py-1 ${i === step ? "bg-accent text-accent-fg" : "border border-line text-muted"}`}>
             {i + 1}. {s.label}
           </li>
         ))}
@@ -84,7 +82,7 @@ export function CreationWizard() {
       </section>
 
       {showIssues && issues.length > 0 && (
-        <ul className="list-disc space-y-1 pl-5 text-red-600">
+        <ul className="list-disc space-y-1 pl-5 text-danger">
           {issues.map((i) => (
             <li key={i}>{i}</li>
           ))}
@@ -92,15 +90,15 @@ export function CreationWizard() {
       )}
 
       <footer className="flex justify-between">
-        <button onClick={back} disabled={step === 0} className="rounded border px-4 py-2 disabled:opacity-40">
+        <button onClick={back} disabled={step === 0} className="btn">
           Back
         </button>
         {current === "review" ? (
-          <button onClick={finish} className="rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black">
+          <button onClick={finish} className="btn-primary">
             Create character
           </button>
         ) : (
-          <button onClick={next} className="rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black">
+          <button onClick={next} className="btn-primary">
             Next
           </button>
         )}
@@ -121,12 +119,12 @@ function RulesetStep({ d, setD }: { d: Draft; setD: React.Dispatch<React.SetStat
   };
   return (
     <>
-      <p className="text-zinc-600 dark:text-zinc-400">Which version of the rules should this character follow? Changing it later restarts your choices.</p>
+      <p className="text-muted">Which version of the rules should this character follow? Changing it later restarts your choices.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {RULESETS.map((r) => (
-          <button key={r} onClick={() => choose(r)} className={card(d.ruleset === r)}>
+          <button key={r} onClick={() => choose(r)} className="option-card" aria-pressed={d.ruleset === r}>
             <div className="text-lg font-semibold">{r} rules</div>
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">{blurb[r]}</div>
+            <div className="text-sm text-muted">{blurb[r]}</div>
           </button>
         ))}
       </div>
@@ -141,13 +139,13 @@ function SpeciesStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => voi
       <h2 className="text-lg font-semibold">{d.ruleset === "2014" ? "Race" : "Species"}</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {SPECIES[d.ruleset].map((s) => (
-          <button key={s.id} onClick={() => patch({ speciesId: s.id })} className={card(d.speciesId === s.id)}>
+          <button key={s.id} onClick={() => patch({ speciesId: s.id })} className="option-card" aria-pressed={d.speciesId === s.id}>
             <div className="font-semibold">{s.name}</div>
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-muted">
               Speed {s.speed} ft
               {s.asi && ` · ${Object.entries(s.asi).map(([a, v]) => `${a.toUpperCase()} +${v}`).join(", ")}`}
             </div>
-            <ul className="mt-1 list-disc pl-4 text-sm text-zinc-600 dark:text-zinc-400">
+            <ul className="mt-1 list-disc pl-4 text-sm text-muted">
               {s.traits.map((t) => (
                 <li key={t}>{t}</li>
               ))}
@@ -171,18 +169,18 @@ function BackgroundStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => 
           <button
             key={b.id}
             onClick={() => patch({ backgroundId: b.id, bgPlus2: null, bgPlus1: null })}
-            className={card(d.backgroundId === b.id)}
+            className="option-card" aria-pressed={d.backgroundId === b.id}
           >
             <div className="font-semibold">{b.name}</div>
-            <div className="text-xs text-zinc-500">Skills: {b.skills.map(label).join(", ")}</div>
-            {b.featId && <div className="text-xs text-zinc-500">Origin feat: {featById(b.featId)?.name}</div>}
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">{b.summary}</div>
+            <div className="text-xs text-muted">Skills: {b.skills.map(label).join(", ")}</div>
+            {b.featId && <div className="text-xs text-muted">Origin feat: {featById(b.featId)?.name}</div>}
+            <div className="text-sm text-muted">{b.summary}</div>
           </button>
         ))}
       </div>
 
       {bg && d.ruleset === "2024" && (
-        <div className="space-y-2 rounded border p-3">
+        <div className="panel space-y-2 !p-3">
           <div className="font-semibold">Ability score bonuses</div>
           <div className="flex gap-4 text-sm">
             <label>
@@ -198,7 +196,7 @@ function BackgroundStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => 
               <AbilitySelect label="+1" value={d.bgPlus1} options={opts} onChange={(v) => patch({ bgPlus1: v })} />
             </div>
           ) : (
-            <div className="text-sm text-zinc-600 dark:text-zinc-400">{opts.map((a) => a.toUpperCase()).join(", ")} each get +1.</div>
+            <div className="text-sm text-muted">{opts.map((a) => a.toUpperCase()).join(", ")} each get +1.</div>
           )}
         </div>
       )}
@@ -206,7 +204,7 @@ function BackgroundStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => 
       {d.ruleset === "2014" && (
         <label className="block space-y-1">
           <span className="font-semibold">Starting feat (optional rule)</span>
-          <select className={`${select} block`} value={d.optionalFeatId ?? ""} onChange={(e) => patch({ optionalFeatId: e.target.value || null })}>
+          <select className="field block" value={d.optionalFeatId ?? ""} onChange={(e) => patch({ optionalFeatId: e.target.value || null })}>
             <option value="">None</option>
             {FEATS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -214,11 +212,11 @@ function BackgroundStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => 
               </option>
             ))}
           </select>
-          {d.optionalFeatId && <span className="block text-sm text-zinc-600 dark:text-zinc-400">{featById(d.optionalFeatId)?.description}</span>}
+          {d.optionalFeatId && <span className="block text-sm text-muted">{featById(d.optionalFeatId)?.description}</span>}
         </label>
       )}
       {d.ruleset === "2024" && bg?.featId && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-muted">
           <strong>{featById(bg.featId)?.name}:</strong> {featById(bg.featId)?.description}
         </p>
       )}
@@ -240,7 +238,7 @@ function AbilitySelect({
   return (
     <label className="flex items-center gap-2">
       <span className="font-semibold">{text}</span>
-      <select className={select} value={value ?? ""} onChange={(e) => onChange((e.target.value || null) as Ability | null)}>
+      <select className="field" value={value ?? ""} onChange={(e) => onChange((e.target.value || null) as Ability | null)}>
         <option value="">—</option>
         {options.map((a) => (
           <option key={a} value={a}>
@@ -276,10 +274,10 @@ function AbilitiesStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => v
       </div>
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
         {ABILITIES.map((a) => (
-          <div key={a} className="rounded border p-3 text-center">
+          <div key={a} className="rounded-lg border border-line bg-surface-2 p-3 text-center">
             <div className="text-xs font-semibold uppercase">{a}</div>
             {d.scoreMethod === "standard" ? (
-              <select className={select} value={d.baseScores[a]} onChange={(e) => setScore(a, Number(e.target.value))}>
+              <select className="field" value={d.baseScores[a]} onChange={(e) => setScore(a, Number(e.target.value))}>
                 <option value={0}>—</option>
                 {STANDARD_ARRAY.map((v) => (
                   <option key={v} value={v} disabled={usedValues.includes(v) && d.baseScores[a] !== v}>
@@ -292,12 +290,12 @@ function AbilitiesStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => v
                 type="number"
                 min={1}
                 max={20}
-                className="w-14 rounded border bg-transparent text-center"
+                className="field w-14 text-center"
                 value={d.baseScores[a]}
                 onChange={(e) => setScore(a, Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
               />
             )}
-            <div className="mt-1 text-xs text-zinc-500">{bonus[a] ? `+${bonus[a]} bonus` : "\u00a0"}</div>
+            <div className="mt-1 text-xs text-muted">{bonus[a] ? `+${bonus[a]} bonus` : "\u00a0"}</div>
             <div className="text-lg font-bold">{final[a] || "—"}</div>
           </div>
         ))}
@@ -331,9 +329,9 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
       {d.classes.length === 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {available.map((id) => (
-            <button key={id} onClick={() => setClasses([{ classId: id, level: 1 }], [])} className={card(false)}>
+            <button key={id} onClick={() => setClasses([{ classId: id, level: 1 }], [])} className="option-card" aria-pressed={false}>
               <div className="font-semibold">{CLASSES[id].name}</div>
-              <div className="text-xs text-zinc-500">
+              <div className="text-xs text-muted">
                 d{CLASSES[id].hitDie} · saves {CLASSES[id].saves.map((s) => s.toUpperCase()).join("/")}
               </div>
             </button>
@@ -345,11 +343,11 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
         const def = CLASSES[k.classId];
         const needsSub = k.level >= def.subclassLevel[ruleset];
         return (
-          <div key={k.classId} className="space-y-2 rounded border p-3">
+          <div key={k.classId} className="panel space-y-2 !p-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-semibold">
                 {def.name}
-                {i === 0 && <span className="ml-2 text-xs text-zinc-500">(starting class)</span>}
+                {i === 0 && <span className="ml-2 text-xs text-muted">(starting class)</span>}
               </span>
               <label className="text-sm">
                 Level{" "}
@@ -357,7 +355,7 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                   type="number"
                   min={1}
                   max={20 - (total - k.level)}
-                  className="w-16 rounded border bg-transparent p-1"
+                  className="field w-16"
                   value={k.level}
                   onChange={(e) => {
                     const level = Math.min(20 - (total - k.level), Math.max(1, Number(e.target.value) || 1));
@@ -375,7 +373,7 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
             {needsSub ? (
               <label className="block text-sm">
                 Subclass{" "}
-                <select className={select} value={k.subclassId ?? ""} onChange={(e) => update(i, { subclassId: e.target.value || undefined })}>
+                <select className="field" value={k.subclassId ?? ""} onChange={(e) => update(i, { subclassId: e.target.value || undefined })}>
                   <option value="">Choose…</option>
                   {def.subclasses[ruleset].map((s) => (
                     <option key={s.id} value={s.id}>
@@ -385,14 +383,14 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                 </select>
               </label>
             ) : (
-              <div className="text-xs text-zinc-500">Subclass unlocks at level {def.subclassLevel[ruleset]}.</div>
+              <div className="text-xs text-muted">Subclass unlocks at level {def.subclassLevel[ruleset]}.</div>
             )}
           </div>
         );
       })}
 
       {primary && (
-        <div className="space-y-2 rounded border p-3">
+        <div className="panel space-y-2 !p-3">
           <div className="font-semibold">
             {primary.name} skills ({d.classSkills.length}/{primary.skillCount})
           </div>
@@ -400,7 +398,7 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
             {primary.skillOptions[ruleset].map((s) => {
               const fromBg = taken.includes(s);
               return (
-                <label key={s} className={`rounded border px-2 py-1 text-sm ${fromBg ? "opacity-40" : ""}`}>
+                <label key={s} className={`rounded-md border border-line px-2 py-1 text-sm ${fromBg ? "opacity-40" : ""}`}>
                   <input
                     type="checkbox"
                     disabled={fromBg}
@@ -428,14 +426,14 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                   disabled={problems.length > 0}
                   title={problems.join(" ")}
                   onClick={() => setClasses([...d.classes, { classId: id, level: 1 }])}
-                  className="rounded border px-3 py-1 text-sm disabled:opacity-40"
+                  className="btn"
                 >
                   + {CLASSES[id].name}
                 </button>
               );
             })}
           </div>
-          <p className="text-xs text-zinc-500">Multiclassing needs 13+ in the primary ability of your current and new classes. Hover a disabled class to see why.</p>
+          <p className="text-xs text-muted">Multiclassing needs 13+ in the primary ability of your current and new classes. Hover a disabled class to see why.</p>
         </div>
       )}
     </>
@@ -451,22 +449,22 @@ function ReviewStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void
   return (
     <>
       <label className="block">
-        <span className="text-xs uppercase text-zinc-500">Name</span>
+        <span className="text-xs uppercase text-muted">Name</span>
         <input
-          className="block w-full border-b bg-transparent text-2xl font-bold outline-none"
+          className="block w-full border-b border-line bg-transparent text-2xl font-bold outline-none"
           value={d.name}
           onChange={(e) => patch({ name: e.target.value })}
           placeholder="Character name"
         />
       </label>
       <dl className="grid grid-cols-[8rem_1fr] gap-y-1 text-sm">
-        <dt className="text-zinc-500">Ruleset</dt>
+        <dt className="text-muted">Ruleset</dt>
         <dd>{d.ruleset}</dd>
-        <dt className="text-zinc-500">Species</dt>
+        <dt className="text-muted">Species</dt>
         <dd>{species?.name}</dd>
-        <dt className="text-zinc-500">Background</dt>
+        <dt className="text-muted">Background</dt>
         <dd>{bg?.name}</dd>
-        <dt className="text-zinc-500">Classes</dt>
+        <dt className="text-muted">Classes</dt>
         <dd>
           {d.classes
             .map((k) => {
@@ -475,14 +473,14 @@ function ReviewStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void
             })
             .join(" / ")}
         </dd>
-        <dt className="text-zinc-500">Abilities</dt>
+        <dt className="text-muted">Abilities</dt>
         <dd>{ABILITIES.map((a) => `${a.toUpperCase()} ${final[a]}`).join(" · ")}</dd>
-        <dt className="text-zinc-500">Skills</dt>
+        <dt className="text-muted">Skills</dt>
         <dd>{[...new Set([...backgroundSkills(d), ...d.classSkills])].map(label).join(", ")}</dd>
-        <dt className="text-zinc-500">Feats</dt>
+        <dt className="text-muted">Feats</dt>
         <dd>{[bg?.featId, d.ruleset === "2014" ? d.optionalFeatId : null].filter(Boolean).map((f) => featById(f!)?.name).join(", ") || "None"}</dd>
       </dl>
-      {issues.length > 0 && <p className="text-red-600">Some earlier steps are incomplete: {issues.join(" ")}</p>}
+      {issues.length > 0 && <p className="text-danger">Some earlier steps are incomplete: {issues.join(" ")}</p>}
     </>
   );
 }

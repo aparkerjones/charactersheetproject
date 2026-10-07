@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 import {
   abilityMod,
   initiative,
-  maxHp,
   proficiencyBonus,
   saveBonus,
   skillBonus,
@@ -21,6 +20,8 @@ import { downloadCharacter, parseCharacter } from "@/engine/file";
 import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
 import { useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Skill } from "@/engine/types";
+import { HpPanel } from "./HpPanel";
+import { ThemeToggle } from "./ThemeToggle";
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 const label = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
@@ -66,25 +67,29 @@ export function Sheet() {
 
   if (!c) {
     return (
-      <main className="mx-auto max-w-3xl p-8">
-        <h1 className="text-3xl font-bold">Character Sheet</h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">Create a new character, or load a saved sheet.</p>
-        <div className="mt-6 flex gap-3">
-          <Link href="/create" className="rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Character Sheet</h1>
+            <p className="mt-2 text-muted">Create a new character, or load one you saved earlier.</p>
+          </div>
+          <ThemeToggle />
+        </div>
+        <div className="flex gap-3">
+          <Link href="/create" className="btn-primary !px-5 !py-2.5">
             Create character
           </Link>
-          <button onClick={() => fileRef.current?.click()} className="rounded border px-4 py-2">
+          <button onClick={() => fileRef.current?.click()} className="btn !px-5 !py-2.5">
             Load character file
           </button>
         </div>
-        {error && <p className="mt-3 text-red-600">{error}</p>}
+        {error && <p className="text-danger">{error}</p>}
         {fileInput}
       </main>
     );
   }
 
   const level = totalLevel(c);
-  const hpMax = maxHp(c);
   const dc = spellSaveDc(c);
   const fx = activeEffects(c);
   const barbarian = c.classes.find((k) => k.classId === "barbarian");
@@ -92,276 +97,300 @@ export function Sheet() {
   const background = BACKGROUNDS[c.ruleset].find((b) => b.id === c.backgroundId);
   const rageMax = barbarian ? rageUses(barbarian.level, c.ruleset) : 0;
   const rageUsed = c.resourcesUsed.rage ?? 0;
-  const hasAdvantage = (ability: string, kind: "checks" | "saves") =>
-    (fx.advantage[kind] as string[]).includes(ability);
+  const hasAdvantage = (ability: string, kind: "checks" | "saves") => (fx.advantage[kind] as string[]).includes(ability);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <header className="flex flex-wrap items-end gap-4">
-        <label className="flex-1">
-          <span className="text-xs uppercase text-zinc-500">Name</span>
-          <input
-            className="block w-full border-b bg-transparent text-2xl font-bold outline-none"
-            value={c.name}
-            onChange={(e) => update({ name: e.target.value })}
-          />
-        </label>
-        <div>
-          <div className="text-xs uppercase text-zinc-500">
-            {c.ruleset} rules · Level {level}
+    <div className="flex-1">
+      <header className="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+          <div className="min-w-48 flex-1">
+            <input
+              aria-label="Character name"
+              placeholder="Character name"
+              className="w-full bg-transparent text-2xl font-bold outline-none placeholder:text-muted"
+              value={c.name}
+              onChange={(e) => update({ name: e.target.value })}
+            />
+            <div className="text-sm text-muted">
+              {species?.name} · {background?.name} · Level {level} · {c.ruleset} rules
+            </div>
           </div>
-          <div className="text-sm">
-            {species?.name} · {background?.name}
-          </div>
+          <button onClick={() => downloadCharacter(c)} className="btn-primary">
+            Download
+          </button>
+          <button onClick={() => fileRef.current?.click()} className="btn">
+            Load
+          </button>
+          <Link href="/create" className="btn">
+            New
+          </Link>
+          <ThemeToggle />
+          {fileInput}
         </div>
-        <button onClick={() => downloadCharacter(c)} className="rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black">
-          Download
-        </button>
-        <button onClick={() => fileRef.current?.click()} className="rounded border px-4 py-2">
-          Load
-        </button>
-        <Link href="/create" className="rounded border px-4 py-2">
-          New
-        </Link>
-        {fileInput}
       </header>
-      {error && <p className="text-red-600">{error}</p>}
 
-      <section className="flex flex-wrap gap-4">
-        {c.classes.map((k) => {
-          const def = CLASSES[k.classId];
-          const sub = def.subclasses[c.ruleset].find((s) => s.id === k.subclassId);
-          const unlock = def.subclassLevel[c.ruleset];
-          return (
-            <div key={k.classId} className="flex items-center gap-2 rounded border p-2">
-              <div>
-                <div className="font-semibold">{def.name}</div>
-                <div className="text-xs text-zinc-500">{sub?.name ?? (k.level >= unlock ? "No subclass" : `Subclass at ${unlock}`)}</div>
-              </div>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                aria-label={`${def.name} level`}
-                className="w-14 rounded border bg-transparent p-1"
-                value={k.level}
-                onChange={(e) => setClassLevel(k.classId, Number(e.target.value) || 1)}
-              />
-              {k.level >= unlock && (
-                <select
-                  aria-label={`${def.name} subclass`}
-                  className="rounded border bg-transparent p-1 text-sm"
-                  value={k.subclassId ?? ""}
-                  onChange={(e) => setSubclass(k.classId, e.target.value)}
-                >
-                  <option value="">Subclass…</option>
-                  {def.subclasses[c.ruleset].map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          );
-        })}
-        <div className="ml-auto flex gap-2">
-          <button onClick={() => rest("short")} className="rounded border px-3 py-1 text-sm">
-            Short rest
-          </button>
-          <button onClick={() => rest("long")} className="rounded border px-3 py-1 text-sm">
-            Long rest
-          </button>
-        </div>
-      </section>
+      <main className="mx-auto max-w-6xl space-y-5 p-4">
+        {error && <p className="text-danger">{error}</p>}
 
-      {barbarian && (
-        <section className={`rounded border-2 p-4 ${c.rageActive ? "border-red-600 bg-red-50 dark:bg-red-950" : ""}`}>
-          <label className="flex items-center gap-3 text-lg font-bold">
-            <input
-              type="checkbox"
-              className="h-5 w-5"
-              checked={c.rageActive}
-              disabled={!c.rageActive && !canStartRage(c)}
-              onChange={toggleRage}
-            />
-            Rage active
-            <span className="text-sm font-normal text-zinc-500">
-              {Number.isFinite(rageMax) ? `${Math.max(0, rageMax - rageUsed)} / ${rageMax} uses left` : "Unlimited uses"}
-            </span>
-          </label>
-          {!c.rageActive && !canStartRage(c) && <p className="mt-1 text-sm text-zinc-500">No rages left. Take a rest to recover uses.</p>}
-          {c.rageActive && (
-            <ul className="mt-2 space-y-1 text-sm">
-              <li>
-                <strong>Resistance:</strong> {fx.resistances.join(", ")} damage
-              </li>
-              {fx.damageBonuses.map((b) => (
-                <li key={b.label}>
-                  <strong>{signed(b.value)} damage:</strong> {b.label}
-                </li>
-              ))}
-              <li>
-                <strong>Advantage:</strong> Strength checks (including Athletics) and Strength saves
-              </li>
-              <li>
-                <strong>Spellcasting and concentration:</strong> unavailable while raging
-              </li>
-            </ul>
-          )}
-        </section>
-      )}
-
-      <section className="flex flex-wrap gap-4 rounded border p-4">
-        <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
-        <Stat title="Initiative" value={signed(initiative(c))} />
-        <Stat title="Speed" value={`${speed(c)} ft`} />
-        {dc !== null && <Stat title="Spell Save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />}
-        <label className="flex flex-col">
-          <span className="text-xs uppercase text-zinc-500">HP (max {hpMax})</span>
-          <input
-            type="number"
-            className="w-24 rounded border bg-transparent p-1 text-xl"
-            value={c.currentHp}
-            onChange={(e) => update({ currentHp: Math.min(hpMax, Number(e.target.value) || 0) })}
-          />
-        </label>
-        {fx.resistances.length > 0 && <Stat title="Resistances" value={fx.resistances.map((r) => r[0]).join("/")} />}
-      </section>
-
-      <section className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-        {ABILITIES.map((a) => (
-          <div key={a} className="rounded border p-3 text-center">
-            <div className="text-xs font-semibold uppercase">{a}</div>
-            <div className="text-2xl font-bold">{signed(abilityMod(c.abilities[a]))}</div>
-            <input
-              type="number"
-              min={1}
-              max={30}
-              className="w-14 rounded border bg-transparent text-center"
-              value={c.abilities[a]}
-              onChange={(e) => setAbility(a, Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
-            />
-            <div className="mt-1 text-xs text-zinc-500">
-              Save {signed(saveBonus(c, a))}
-              {CLASSES[c.classes[0].classId].saves.includes(a) && " ●"}
-              {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-red-600">ADV</span>}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="rounded border p-4">
-          <h2 className="mb-2 font-bold">Skills</h2>
-          <div className="mb-1 flex justify-end gap-3 text-xs text-zinc-500">
-            <span>Prof</span>
-            <span>Exp</span>
-          </div>
-          <ul className="space-y-1">
-            {(Object.keys(SKILLS) as Skill[]).map((s) => (
-              <li key={s} className="flex items-center gap-2">
-                <span className="w-8 text-right tabular-nums">{signed(skillBonus(c, s))}</span>
-                <span className="flex-1">
-                  {label(s)} <span className="text-xs text-zinc-500">({SKILLS[s]})</span>
-                  {hasAdvantage(SKILLS[s], "checks") && <span className="ml-1 text-xs font-bold text-red-600">ADV</span>}
-                </span>
-                <input
-                  type="checkbox"
-                  aria-label={`${label(s)} proficiency`}
-                  checked={c.skillProficiencies.includes(s)}
-                  onChange={() => toggleSkill(s, "skillProficiencies")}
-                />
-                <input
-                  type="checkbox"
-                  aria-label={`${label(s)} expertise`}
-                  checked={c.expertise.includes(s)}
-                  onChange={() => toggleSkill(s, "expertise")}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <div className="space-y-6">
+        <section className="flex flex-wrap items-center gap-3">
           {c.classes.map((k) => {
             const def = CLASSES[k.classId];
-            const resources = def.resources.filter((r) => k.level >= (r.minLevel ?? 1));
+            const unlock = def.subclassLevel[c.ruleset];
             return (
-              <section key={k.classId} className="rounded border p-4">
-                <h2 className="mb-2 font-bold">
-                  {def.name} {k.level}
-                </h2>
-                {resources.map((r) => {
-                  const max = r.max(k.level, c.ruleset);
-                  const shown = Math.min(max, 12);
-                  const used = Math.min(c.resourcesUsed[r.id] ?? 0, shown);
-                  const isRage = r.id === "rage";
+              <div key={k.classId} className="panel flex flex-wrap items-center gap-3 !py-2">
+                <div className="font-semibold">{def.name}</div>
+                <label className="flex items-center gap-1 text-sm text-muted">
+                  Level
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    aria-label={`${def.name} level`}
+                    className="field w-16"
+                    value={k.level}
+                    onChange={(e) => setClassLevel(k.classId, Number(e.target.value) || 1)}
+                  />
+                </label>
+                {k.level >= unlock ? (
+                  <select
+                    aria-label={`${def.name} subclass`}
+                    className="field text-sm"
+                    value={k.subclassId ?? ""}
+                    onChange={(e) => setSubclass(k.classId, e.target.value)}
+                  >
+                    <option value="">Choose subclass…</option>
+                    {def.subclasses[c.ruleset].map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-muted">Subclass at level {unlock}</span>
+                )}
+              </div>
+            );
+          })}
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
+              Short rest
+            </button>
+            <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
+              Long rest
+            </button>
+          </div>
+        </section>
+
+        {barbarian && (
+          <section className={`panel border-2 ${c.rageActive ? "!border-danger !bg-danger-bg" : ""}`}>
+            <label className="flex flex-wrap items-center gap-3 text-lg font-bold">
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-[var(--accent)]"
+                checked={c.rageActive}
+                disabled={!c.rageActive && !canStartRage(c)}
+                onChange={toggleRage}
+              />
+              Rage
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-sm font-medium text-muted">
+                {Number.isFinite(rageMax) ? `${Math.max(0, rageMax - rageUsed)} of ${rageMax} uses left` : "Unlimited uses"}
+              </span>
+              {c.rageActive && <span className="text-sm font-semibold text-danger">ACTIVE</span>}
+            </label>
+            {!c.rageActive && !canStartRage(c) && <p className="mt-1 text-sm text-muted">No rages left. Take a rest to recover uses.</p>}
+            {c.rageActive && (
+              <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+                <li>
+                  <strong>Resistance:</strong> {fx.resistances.join(", ")} damage
+                </li>
+                {fx.damageBonuses.map((b) => (
+                  <li key={b.label}>
+                    <strong>{signed(b.value)} damage:</strong> {b.label}
+                  </li>
+                ))}
+                <li>
+                  <strong>Advantage:</strong> Strength checks and Strength saves
+                </li>
+                <li>
+                  <strong>No spellcasting or concentration</strong> while raging
+                </li>
+              </ul>
+            )}
+          </section>
+        )}
+
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <HpPanel c={c} />
+
+          <div className="space-y-5">
+            <section className="panel">
+              <h2 className="panel-title">Combat</h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
+                <Stat title="Initiative" value={signed(initiative(c))} />
+                <Stat title="Speed" value={`${speed(c)} ft`} />
+                {dc !== null ? (
+                  <Stat title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />
+                ) : (
+                  <Stat title="Resistances" value={fx.resistances.length ? "B / P / S" : "None"} />
+                )}
+              </div>
+            </section>
+
+            <section className="panel">
+              <h2 className="panel-title">Abilities and saving throws</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+                {ABILITIES.map((a) => {
+                  const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
                   return (
-                    <div key={r.id} className="mb-2">
-                      <div className="text-sm">{r.label}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {Array.from({ length: shown }, (_, i) => (
-                          <input
-                            key={i}
-                            type="checkbox"
-                            aria-label={`${r.label} ${i + 1} used`}
-                            checked={i < used}
-                            disabled={isRage}
-                            onChange={() => setResourceUsed(r.id, i < used ? i : i + 1)}
-                          />
-                        ))}
-                        {!Number.isFinite(max) && <span className="text-xs text-zinc-500">Unlimited</span>}
+                    <div key={a} className="rounded-lg border border-line bg-surface-2 p-3 text-center">
+                      <div className="label-caps">{a}</div>
+                      <div className="text-2xl font-bold">{signed(abilityMod(c.abilities[a]))}</div>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        aria-label={`${a} score`}
+                        className="field w-14 text-center"
+                        value={c.abilities[a]}
+                        onChange={(e) => setAbility(a, Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
+                      />
+                      <div className="mt-2 text-xs text-muted">
+                        Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
+                        {proficient && <span title="Proficient"> ●</span>}
+                        {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-danger">ADV</span>}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <section className="panel">
+            <h2 className="panel-title">Skills</h2>
+            <div className="mb-1 flex justify-end gap-3 text-xs text-muted">
+              <span>Prof</span>
+              <span>Expertise</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {(Object.keys(SKILLS) as Skill[]).map((s) => {
+                const proficient = c.skillProficiencies.includes(s);
+                return (
+                  <li key={s} className={`flex items-center gap-2 py-1 ${proficient ? "font-medium" : ""}`}>
+                    <span className="w-9 text-right tabular-nums">{signed(skillBonus(c, s))}</span>
+                    <span className="flex-1">
+                      {label(s)} <span className="text-xs uppercase text-muted">{SKILLS[s]}</span>
+                      {hasAdvantage(SKILLS[s], "checks") && <span className="ml-1 text-xs font-bold text-danger">ADV</span>}
+                    </span>
+                    <input
+                      type="checkbox"
+                      aria-label={`${label(s)} proficiency`}
+                      checked={proficient}
+                      onChange={() => toggleSkill(s, "skillProficiencies")}
+                    />
+                    <input
+                      type="checkbox"
+                      className="ml-4"
+                      aria-label={`${label(s)} expertise`}
+                      checked={c.expertise.includes(s)}
+                      onChange={() => toggleSkill(s, "expertise")}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <div className="space-y-5">
+            {c.classes.map((k) => {
+              const def = CLASSES[k.classId];
+              const resources = def.resources.filter((r) => k.level >= (r.minLevel ?? 1));
+              const sub = def.subclasses[c.ruleset].find((s) => s.id === k.subclassId);
+              return (
+                <section key={k.classId} className="panel">
+                  <h2 className="panel-title !mb-1">
+                    {def.name} {k.level}
+                  </h2>
+                  {sub && <div className="mb-3 text-sm text-muted">{sub.name}</div>}
+                  {resources.map((r) => {
+                    const max = r.max(k.level, c.ruleset);
+                    const shown = Math.min(max, 12);
+                    const used = Math.min(c.resourcesUsed[r.id] ?? 0, shown);
+                    const isRage = r.id === "rage";
+                    return (
+                      <div key={r.id} className="mb-3">
+                        <div className="text-sm font-medium">
+                          {r.label}
+                          {isRage && <span className="ml-2 text-xs text-muted">(use the Rage toggle above)</span>}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {Array.from({ length: shown }, (_, i) => (
+                            <input
+                              key={i}
+                              type="checkbox"
+                              className="h-4 w-4"
+                              aria-label={`${r.label} ${i + 1} used`}
+                              checked={i < used}
+                              disabled={isRage}
+                              onChange={() => setResourceUsed(r.id, i < used ? i : i + 1)}
+                            />
+                          ))}
+                          {!Number.isFinite(max) && <span className="text-xs text-muted">Unlimited</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <ul className="space-y-2">
+                    {def.features
+                      .filter((f) => f.level <= k.level && (!f.rulesets || f.rulesets.includes(c.ruleset)))
+                      .map((f) => (
+                        <li key={f.name}>
+                          <div className="font-semibold">{f.name}</div>
+                          <div className="text-sm text-muted">{f.description}</div>
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              );
+            })}
+
+            {c.feats.length > 0 && (
+              <section className="panel">
+                <h2 className="panel-title">Feats</h2>
                 <ul className="space-y-2">
-                  {def.features
-                    .filter((f) => f.level <= k.level && (!f.rulesets || f.rulesets.includes(c.ruleset)))
-                    .map((f) => (
-                      <li key={f.name}>
-                        <div className="font-semibold">{f.name}</div>
-                        <div className="text-sm text-zinc-600 dark:text-zinc-400">{f.description}</div>
-                      </li>
-                    ))}
+                  {c.feats.map((id) => (
+                    <li key={id}>
+                      <div className="font-semibold">{featById(id)?.name ?? id}</div>
+                      <div className="text-sm text-muted">{featById(id)?.description}</div>
+                    </li>
+                  ))}
                 </ul>
               </section>
-            );
-          })}
+            )}
 
-          {c.feats.length > 0 && (
-            <section className="rounded border p-4">
-              <h2 className="mb-2 font-bold">Feats</h2>
-              <ul className="space-y-2">
-                {c.feats.map((id) => (
-                  <li key={id}>
-                    <div className="font-semibold">{featById(id)?.name ?? id}</div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">{featById(id)?.description}</div>
-                  </li>
-                ))}
-              </ul>
+            <section className="panel">
+              <h2 className="panel-title">Notes</h2>
+              <textarea
+                aria-label="Notes"
+                className="field h-32 w-full"
+                value={c.notes}
+                onChange={(e) => update({ notes: e.target.value })}
+              />
             </section>
-          )}
-
-          <section className="rounded border p-4">
-            <h2 className="mb-2 font-bold">Notes</h2>
-            <textarea
-              className="h-32 w-full rounded border bg-transparent p-2"
-              value={c.notes}
-              onChange={(e) => update({ notes: e.target.value })}
-            />
-          </section>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
 function Stat({ title, value }: { title: string; value: string }) {
   return (
     <div>
-      <div className="text-xs uppercase text-zinc-500">{title}</div>
+      <div className="label-caps">{title}</div>
       <div className="text-xl font-bold">{value}</div>
     </div>
   );

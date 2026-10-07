@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { maxHp } from "./calc";
 import { CLASSES } from "./data/classes";
+import { applyDamage, applyHealing, grantTempHp, recoverHitDice } from "./hp";
 import { canStartRage } from "./rage";
 import type { Ability, Character } from "./types";
 
@@ -15,6 +16,11 @@ interface State {
   setSubclass: (classId: string, subclassId: string) => void;
   toggleRage: () => void;
   rest: (kind: "short" | "long") => void;
+  damage: (amount: number, halve?: boolean) => void;
+  heal: (amount: number) => void;
+  setTempHp: (amount: number) => void;
+  setDeathSaves: (kind: "successes" | "failures", count: number) => void;
+  spendHitDie: (classId: string, healed: number) => void;
 }
 
 export const useCharacter = create<State>((set, get) => {
@@ -60,8 +66,28 @@ export const useCharacter = create<State>((set, get) => {
         return {
           resourcesUsed: used,
           rageActive: false,
-          currentHp: kind === "long" ? maxHp(c) : c.currentHp,
+          ...(kind === "long"
+            ? {
+                currentHp: maxHp(c),
+                tempHp: 0,
+                deathSaves: { successes: 0, failures: 0 },
+                hitDiceUsed: recoverHitDice(c, (id) => CLASSES[id].hitDie),
+              }
+            : {}),
         };
+      }),
+    damage: (amount, halve) => patch((c) => applyDamage(c, amount, halve)),
+    heal: (amount) => patch((c) => applyHealing(c, amount)),
+    setTempHp: (amount) => patch((c) => ({ tempHp: grantTempHp(c, amount) })),
+    setDeathSaves: (kind, count) =>
+      patch((c) => ({ deathSaves: { ...c.deathSaves, [kind]: Math.min(3, Math.max(0, count)) } })),
+    // The player rolls the die themselves and enters the total healed.
+    spendHitDie: (classId, healed) =>
+      patch((c) => {
+        const level = c.classes.find((k) => k.classId === classId)?.level ?? 0;
+        const used = c.hitDiceUsed[classId] ?? 0;
+        if (used >= level) return null;
+        return { ...applyHealing(c, healed), hitDiceUsed: { ...c.hitDiceUsed, [classId]: used + 1 } };
       }),
   };
 });
