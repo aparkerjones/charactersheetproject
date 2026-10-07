@@ -14,6 +14,7 @@ interface State {
   setResourceUsed: (id: string, used: number) => void;
   setClassLevel: (classId: string, level: number) => void;
   setSubclass: (classId: string, subclassId: string) => void;
+  levelUp: (classId: string) => void;
   toggleRage: () => void;
   rest: (kind: "short" | "long") => void;
   damage: (amount: number, halve?: boolean) => void;
@@ -48,6 +49,16 @@ export const useCharacter = create<State>((set, get) => {
       }),
     setSubclass: (classId, subclassId) =>
       patch((c) => ({ classes: c.classes.map((k) => (k.classId === classId ? { ...k, subclassId } : k)) })),
+    levelUp: (classId) =>
+      patch((c) => {
+        if (c.classes.reduce((n, k) => n + k.level, 0) >= 20) return null;
+        const exists = c.classes.some((k) => k.classId === classId);
+        return {
+          classes: exists
+            ? c.classes.map((k) => (k.classId === classId ? { ...k, level: k.level + 1 } : k))
+            : [...c.classes, { classId: classId as Character["classes"][number]["classId"], level: 1 }],
+        };
+      }),
     toggleRage: () =>
       patch((c) => {
         if (c.rageActive) return { rageActive: false };

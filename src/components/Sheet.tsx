@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   abilityMod,
   initiative,
@@ -21,6 +21,7 @@ import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
 import { useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Skill } from "@/engine/types";
 import { HpPanel } from "./HpPanel";
+import { LevelUpDialog } from "./LevelUpDialog";
 import { ThemeToggle } from "./ThemeToggle";
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
@@ -41,6 +42,13 @@ export function Sheet() {
   } = useCharacter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [levelUpOpen, setLevelUpOpen] = useState(false);
+
+  const raging = c?.rageActive ?? false;
+  useEffect(() => {
+    document.documentElement.classList.toggle("rage", raging);
+    return () => document.documentElement.classList.remove("rage");
+  }, [raging]);
 
   const importFile = async (file: File) => {
     try {
@@ -115,7 +123,10 @@ export function Sheet() {
               {species?.name} · {background?.name} · Level {level} · {c.ruleset} rules
             </div>
           </div>
-          <button onClick={() => downloadCharacter(c)} className="btn-primary">
+          <button onClick={() => setLevelUpOpen(true)} className="btn-primary">
+            Level up
+          </button>
+          <button onClick={() => downloadCharacter(c)} className="btn">
             Download
           </button>
           <button onClick={() => fileRef.current?.click()} className="btn">
@@ -129,6 +140,7 @@ export function Sheet() {
         </div>
       </header>
 
+      {levelUpOpen && <LevelUpDialog c={c} onClose={() => setLevelUpOpen(false)} />}
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
 
@@ -182,8 +194,8 @@ export function Sheet() {
         </section>
 
         {barbarian && (
-          <section className={`panel border-2 ${c.rageActive ? "!border-danger !bg-danger-bg" : ""}`}>
-            <label className="flex flex-wrap items-center gap-3 text-lg font-bold">
+          <section className="panel flex flex-wrap items-center gap-4 !py-3">
+            <label className="flex items-center gap-2 text-lg font-bold">
               <input
                 type="checkbox"
                 className="h-5 w-5 accent-[var(--accent)]"
@@ -192,29 +204,15 @@ export function Sheet() {
                 onChange={toggleRage}
               />
               Rage
-              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-sm font-medium text-muted">
-                {Number.isFinite(rageMax) ? `${Math.max(0, rageMax - rageUsed)} of ${rageMax} uses left` : "Unlimited uses"}
-              </span>
-              {c.rageActive && <span className="text-sm font-semibold text-danger">ACTIVE</span>}
             </label>
-            {!c.rageActive && !canStartRage(c) && <p className="mt-1 text-sm text-muted">No rages left. Take a rest to recover uses.</p>}
-            {c.rageActive && (
-              <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
-                <li>
-                  <strong>Resistance:</strong> {fx.resistances.join(", ")} damage
-                </li>
-                {fx.damageBonuses.map((b) => (
-                  <li key={b.label}>
-                    <strong>{signed(b.value)} damage:</strong> {b.label}
-                  </li>
+            {Number.isFinite(rageMax) ? (
+              <div className="flex gap-1.5" aria-label={`${Math.max(0, rageMax - rageUsed)} of ${rageMax} rages left`}>
+                {Array.from({ length: rageMax }, (_, i) => (
+                  <input key={i} type="checkbox" readOnly tabIndex={-1} checked={i < rageUsed} className="pointer-events-none h-4 w-4 accent-[var(--accent)]" />
                 ))}
-                <li>
-                  <strong>Advantage:</strong> Strength checks and Strength saves
-                </li>
-                <li>
-                  <strong>No spellcasting or concentration</strong> while raging
-                </li>
-              </ul>
+              </div>
+            ) : (
+              <span className="text-sm text-muted">Unlimited</span>
             )}
           </section>
         )}

@@ -33,6 +33,26 @@
   --good: #4ade80;
 }
 
+/* Subtle warm shift while raging; set on <html> by Sheet. */
+.rage {
+  --background: #f3e6e1;
+  --surface-2: #f1ddd5;
+  --line: #e0b9ab;
+  --accent: #b91c1c;
+}
+
+.dark.rage {
+  --background: #1c1010;
+  --surface: #241615;
+  --surface-2: #301b19;
+  --line: #5a2926;
+  --accent: #f87171;
+}
+
+body {
+  transition: background-color 0.3s;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
