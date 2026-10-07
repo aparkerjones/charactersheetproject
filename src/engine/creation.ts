@@ -165,7 +165,24 @@ export function allIssues(d: Draft): string[] {
   return STEPS.flatMap((s) => stepIssues(d, s.id));
 }
 
-export function buildCharacter(d: Draft): Character {
+export function draftFromCharacter(c: Character): Draft {
+  const saved = c.creation ?? {
+    ...emptyDraft(),
+    scoreMethod: "manual" as const,
+    baseScores: { ...c.abilities },
+    classSkills: (c.skillProficiencies as Skill[]).slice(0, CLASSES[c.classes[0].classId].skillCount),
+  };
+  return {
+    ...saved,
+    ruleset: c.ruleset,
+    name: c.name,
+    speciesId: c.speciesId,
+    backgroundId: c.backgroundId,
+    classes: c.classes.map((k) => ({ ...k })),
+  };
+}
+
+export function buildCharacter(d: Draft, existing?: Character): Character {
   const issues = allIssues(d);
   if (issues.length > 0 || !d.ruleset || !d.speciesId || !d.backgroundId) {
     throw new Error(issues.join(" ") || "Incomplete character");
@@ -174,7 +191,8 @@ export function buildCharacter(d: Draft): Character {
   const feats = [bg?.featId, d.ruleset === "2014" ? d.optionalFeatId : null].filter((f): f is string => Boolean(f));
   const character: Character = {
     version: 2,
-    id: crypto.randomUUID(),
+    id: existing?.id ?? crypto.randomUUID(),
+    creation: structuredClone(d),
     ruleset: d.ruleset,
     name: d.name.trim(),
     speciesId: d.speciesId,
@@ -193,7 +211,25 @@ export function buildCharacter(d: Draft): Character {
     rageActive: false,
     notes: "",
   };
-  return { ...character, currentHp: maxHp(character) };
+  if (!existing) return { ...character, currentHp: maxHp(character) };
+
+  const oldSkills = existing.creation ? [...backgroundSkills(existing.creation), ...existing.creation.classSkills] : [];
+  const manualSkills = existing.skillProficiencies.filter((s) => !(oldSkills as string[]).includes(s));
+  const merged: Character = {
+    ...existing,
+    ...character,
+    skillProficiencies: [...new Set([...character.skillProficiencies, ...manualSkills])],
+    expertise: existing.expertise,
+    abilityOverrides: existing.abilityOverrides,
+    tempHp: existing.tempHp,
+    hitDiceUsed: existing.hitDiceUsed,
+    deathSaves: existing.deathSaves,
+    resourcesUsed: existing.resourcesUsed,
+    rageActive: existing.rageActive,
+    notes: existing.notes,
+  };
+  const gained = Math.max(0, maxHp(merged) - maxHp(existing));
+  return { ...merged, currentHp: Math.min(maxHp(merged), existing.currentHp + gained) };
 }
 
 export const availableClassIds = (d: Draft): ClassId[] =>

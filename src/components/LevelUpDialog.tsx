@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { abilityScore, totalLevel } from "@/engine/calc";
 import { multiclassIssues } from "@/engine/creation";
@@ -8,7 +9,7 @@ import { useCharacter } from "@/engine/store";
 import { ABILITIES, type Ability, type Character, type ClassId } from "@/engine/types";
 
 export function LevelUpDialog({ c, onClose }: { c: Character; onClose: () => void }) {
-  const { levelUp, setSubclass, setClassLevel } = useCharacter();
+  const { levelUp, setSubclass } = useCharacter();
   const [override, setOverride] = useState(false);
   const [picked, setPicked] = useState<ClassId | null>(null);
   const [subclass, setSub] = useState("");
@@ -89,49 +90,9 @@ export function LevelUpDialog({ c, onClose }: { c: Character; onClose: () => voi
           </label>
         )}
 
-        <details className="rounded border border-line p-3">
-          <summary className="cursor-pointer text-sm font-semibold">Edit current classes</summary>
-          <div className="mt-3 space-y-2">
-            {c.classes.map((k) => {
-              const d = CLASSES[k.classId];
-              const unlocked = k.level >= d.subclassLevel[c.ruleset];
-              return (
-                <div key={k.classId} className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="w-24 font-semibold">{d.name}</span>
-                  <label className="flex items-center gap-1 text-muted">
-                    Level
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      aria-label={`${d.name} level`}
-                      className="field w-16"
-                      value={k.level}
-                      onChange={(e) => setClassLevel(k.classId, Number(e.target.value) || 1)}
-                    />
-                  </label>
-                  {unlocked ? (
-                    <select
-                      aria-label={`${d.name} subclass`}
-                      className="field"
-                      value={k.subclassId ?? ""}
-                      onChange={(e) => setSubclass(k.classId, e.target.value)}
-                    >
-                      <option value="">No subclass</option>
-                      {d.subclasses[c.ruleset].map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="text-xs text-muted">Subclass at level {d.subclassLevel[c.ruleset]}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </details>
+        <Link href="/create?edit=1" className="btn block text-center">
+          Edit character options (species, background, classes…)
+        </Link>
 
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>

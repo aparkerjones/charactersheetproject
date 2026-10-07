@@ -11,6 +11,7 @@ import {
   availableClassIds,
   backgroundSkills,
   buildCharacter,
+  draftFromCharacter,
   draftTotalLevel,
   emptyDraft,
   emptyScores,
@@ -24,15 +25,15 @@ import { CLASSES } from "@/engine/data/classes";
 import { FEATS, featById } from "@/engine/data/feats";
 import { SPECIES } from "@/engine/data/species";
 import { useCharacter } from "@/engine/store";
-import { ABILITIES, RULESETS, type Ability, type Skill } from "@/engine/types";
+import { ABILITIES, RULESETS, type Ability, type Character, type Skill } from "@/engine/types";
 import { ThemeToggle } from "./ThemeToggle";
 
 const label = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 
-export function CreationWizard() {
+export function CreationWizard({ editing }: { editing?: Character }) {
   const router = useRouter();
   const load = useCharacter((s) => s.load);
-  const [d, setD] = useState<Draft>(emptyDraft);
+  const [d, setD] = useState<Draft>(() => (editing ? draftFromCharacter(editing) : emptyDraft()));
   const [step, setStep] = useState(0);
   const [showIssues, setShowIssues] = useState(false);
 
@@ -51,14 +52,20 @@ export function CreationWizard() {
   };
   const finish = () => {
     if (allIssues(d).length > 0) return setShowIssues(true);
-    load(buildCharacter(d));
+    load(buildCharacter(d, editing));
+    if (!editing) {
+      // Next keeps this page mounted after navigating away, so clear the finished draft.
+      setD(emptyDraft());
+      setStep(0);
+      setShowIssues(false);
+    }
     router.push("/");
   };
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Create a character</h1>
+        <h1 className="text-2xl font-bold">{editing ? "Edit character" : "Create a character"}</h1>
         <div className="flex items-center gap-3"><ThemeToggle /><Link href="/" className="text-sm underline">
           Cancel
         </Link></div>
@@ -66,14 +73,24 @@ export function CreationWizard() {
 
       <ol className="flex flex-wrap gap-2 text-sm">
         {STEPS.map((s, i) => (
-          <li key={s.id} className={`rounded px-3 py-1 ${i === step ? "bg-accent text-accent-fg" : "border border-line text-muted"}`}>
-            {i + 1}. {s.label}
+          <li key={s.id}>
+            <button
+              type="button"
+              disabled={!editing}
+              onClick={() => {
+                setShowIssues(false);
+                setStep(i);
+              }}
+              className={`rounded px-3 py-1 ${i === step ? "bg-accent text-accent-fg" : "border border-line text-muted"} ${editing ? "hover:border-accent" : ""}`}
+            >
+              {i + 1}. {s.label}
+            </button>
           </li>
         ))}
       </ol>
 
       <section className="space-y-4">
-        {current === "ruleset" && <RulesetStep d={d} setD={setD} />}
+        {current === "ruleset" && <RulesetStep d={d} setD={setD} locked={Boolean(editing)} />}
         {current === "species" && <SpeciesStep d={d} patch={patch} />}
         {current === "background" && <BackgroundStep d={d} patch={patch} />}
         {current === "abilities" && <AbilitiesStep d={d} patch={patch} />}
@@ -93,23 +110,30 @@ export function CreationWizard() {
         <button onClick={back} disabled={step === 0} className="btn">
           Back
         </button>
-        {current === "review" ? (
-          <button onClick={finish} className="btn-primary">
-            Create character
-          </button>
-        ) : (
-          <button onClick={next} className="btn-primary">
-            Next
-          </button>
-        )}
+        <div className="flex gap-2">
+          {editing && current !== "review" && (
+            <button onClick={finish} className="btn">
+              Save changes
+            </button>
+          )}
+          {current === "review" ? (
+            <button onClick={finish} className="btn-primary">
+              {editing ? "Save changes" : "Create character"}
+            </button>
+          ) : (
+            <button onClick={next} className="btn-primary">
+              Next
+            </button>
+          )}
+        </div>
       </footer>
     </main>
   );
 }
 
-function RulesetStep({ d, setD }: { d: Draft; setD: React.Dispatch<React.SetStateAction<Draft>> }) {
+function RulesetStep({ d, setD, locked }: { d: Draft; setD: React.Dispatch<React.SetStateAction<Draft>>; locked: boolean }) {
   const choose = (ruleset: Draft["ruleset"]) => {
-    if (ruleset === d.ruleset) return;
+    if (locked || ruleset === d.ruleset) return;
     // Options differ between rulesets, so downstream choices restart.
     setD({ ...emptyDraft(), ruleset, name: d.name });
   };
@@ -119,10 +143,10 @@ function RulesetStep({ d, setD }: { d: Draft; setD: React.Dispatch<React.SetStat
   };
   return (
     <>
-      <p className="text-muted">Which version of the rules should this character follow? Changing it later restarts your choices.</p>
+      <p className="text-muted">{locked ? "The ruleset can't be changed on an existing character." : "Which version of the rules should this character follow? Changing it later restarts your choices."}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {RULESETS.map((r) => (
-          <button key={r} onClick={() => choose(r)} className="option-card" aria-pressed={d.ruleset === r}>
+          <button key={r} onClick={() => choose(r)} disabled={locked && d.ruleset !== r} className="option-card disabled:opacity-50" aria-pressed={d.ruleset === r}>
             <div className="text-lg font-semibold">{r} rules</div>
             <div className="text-sm text-muted">{blurb[r]}</div>
           </button>

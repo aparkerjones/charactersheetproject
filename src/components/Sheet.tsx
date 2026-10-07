@@ -230,22 +230,31 @@ export function Sheet() {
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
 
-        <section className="flex flex-wrap items-stretch gap-3">
-          <div className="flex flex-col gap-2">
-            {c.classes.map((k) => {
-              const def = CLASSES[k.classId];
-              const sub = k.level >= def.subclassLevel[c.ruleset] ? def.subclasses[c.ruleset].find((s) => s.id === k.subclassId) : undefined;
-              return (
-                <div key={k.classId} className="panel !px-4 !py-2">
-                  <div className="font-semibold">
-                    {def.name} <span className="font-normal text-muted">Level {k.level}</span>
+        <section className="flex flex-wrap items-start gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex flex-wrap items-stretch gap-2">
+              {c.classes.map((k) => {
+                const def = CLASSES[k.classId];
+                const sub = k.level >= def.subclassLevel[c.ruleset] ? def.subclasses[c.ruleset].find((s) => s.id === k.subclassId) : undefined;
+                return (
+                  <div key={k.classId} className="panel !px-4 !py-2">
+                    <div className="font-semibold">
+                      {def.name} <span className="font-normal text-muted">Level {k.level}</span>
+                    </div>
+                    {sub && <div className="text-sm text-muted">{sub.name}</div>}
                   </div>
-                  {sub && <div className="text-sm text-muted">{sub.name}</div>}
-                </div>
-              );
-            })}
-          </div>
-          <section aria-label="Abilities" className="grid min-w-0 flex-1 grid-cols-3 gap-2 sm:grid-cols-6">
+                );
+              })}
+              <div className="ml-auto flex gap-2">
+                <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
+                  Short rest
+                </button>
+                <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
+                  Long rest
+                </button>
+              </div>
+            </div>
+          <section aria-label="Abilities" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {ABILITIES.map((a) => {
               const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
               return (
@@ -272,17 +281,8 @@ export function Sheet() {
               );
             })}
           </section>
-          <div className="flex items-start gap-2">
-            <div className="flex flex-col gap-2">
-              <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
-                Short rest
-              </button>
-              <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
-                Long rest
-              </button>
-            </div>
-            <HpBox c={c} />
           </div>
+          <HpBox c={c} />
         </section>
         <section className="panel grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] items-stretch gap-y-4 !p-0">
           {[

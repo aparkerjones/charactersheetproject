@@ -1,5 +1,5 @@
-import { CreationWizard } from "@/components/CreationWizard";
+import { CreationEntry } from "@/components/CreationEntry";
 
 export default function CreatePage() {
-  return <CreationWizard />;
+  return <CreationEntry />;
 }

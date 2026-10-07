@@ -1,3 +1,4 @@
+import type { Draft } from "./creation";
 import { z } from "zod";
 
 export const ABILITIES = ["str", "dex", "con", "int", "wis", "cha"] as const;
@@ -106,6 +107,8 @@ export const CharacterSchema = z
   .object({
     version: z.literal(2),
     id: z.string().default(() => crypto.randomUUID()),
+    // Creation choices, kept so the wizard can reopen the character for editing.
+    creation: z.custom<Draft>().optional(),
     ruleset: z.enum(RULESETS),
     name: z.string(),
     speciesId: z.string(),
