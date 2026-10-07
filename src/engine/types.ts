@@ -25,13 +25,32 @@ export const SKILLS = {
 } as const satisfies Record<string, Ability>;
 export type Skill = keyof typeof SKILLS;
 
-export type ClassId = "barbarian" | "fighter" | "rogue" | "wizard";
+export const RULESETS = ["2014", "2024"] as const;
+export type Ruleset = (typeof RULESETS)[number];
+
+export const CLASS_IDS = ["barbarian", "fighter", "rogue", "wizard"] as const;
+export type ClassId = (typeof CLASS_IDS)[number];
 
 export interface ClassResource {
   id: string;
   label: string;
-  max: (level: number) => number;
-  recharge: "short" | "long";
+  minLevel?: number;
+  max: (level: number, ruleset: Ruleset) => number;
+  // Uses regained on a short rest; Infinity restores everything. Long rests always restore everything.
+  shortRestRecovery: (ruleset: Ruleset) => number;
+}
+
+export interface SubclassDefinition {
+  id: string;
+  name: string;
+  summary: string;
+}
+
+export interface ClassFeature {
+  level: number;
+  name: string;
+  description: string;
+  rulesets?: Ruleset[];
 }
 
 export interface ClassDefinition {
@@ -39,28 +58,76 @@ export interface ClassDefinition {
   name: string;
   hitDie: number;
   saves: Ability[];
-  spellcasting?: { ability: Ability; fullCaster: boolean };
+  primaryAbilities: Ability[];
+  skillCount: number;
+  skillOptions: Record<Ruleset, Skill[]>;
+  subclassLevel: Record<Ruleset, number>;
+  subclasses: Record<Ruleset, SubclassDefinition[]>;
+  spellcasting?: { ability: Ability };
   resources: ClassResource[];
-  features: { level: number; name: string; description: string }[];
+  features: ClassFeature[];
 }
 
-export const CharacterSchema = z.object({
-  version: z.literal(1),
-  name: z.string(),
-  classId: z.enum(["barbarian", "fighter", "rogue", "wizard"]),
-  level: z.number().int().min(1).max(20),
-  abilities: z.object({
-    str: z.number().int().min(1).max(30),
-    dex: z.number().int().min(1).max(30),
-    con: z.number().int().min(1).max(30),
-    int: z.number().int().min(1).max(30),
-    wis: z.number().int().min(1).max(30),
-    cha: z.number().int().min(1).max(30),
-  }),
-  skillProficiencies: z.array(z.string()),
-  expertise: z.array(z.string()),
-  currentHp: z.number().int(),
-  resourcesUsed: z.record(z.string(), z.number().int().min(0)),
-  notes: z.string(),
-});
+export interface SpeciesDefinition {
+  id: string;
+  name: string;
+  speed: number;
+  // Fixed ability bonuses; only used by the 2014 rules.
+  asi?: Partial<Record<Ability, number>>;
+  traits: string[];
+}
+
+export interface BackgroundDefinition {
+  id: string;
+  name: string;
+  skills: [Skill, Skill];
+  // 2024 backgrounds let you spread bonuses across these abilities.
+  abilityOptions?: Ability[];
+  featId?: string;
+  summary: string;
+}
+
+export interface FeatMods {
+  hpPerLevel?: number;
+  initiativeFlat?: number;
+  initiativeProficiency?: boolean;
+}
+
+export interface FeatDefinition {
+  id: string;
+  name: string;
+  description: string;
+  mods?: (ruleset: Ruleset) => FeatMods;
+}
+
+const score = z.number().int().min(1).max(30);
+
+export const CharacterSchema = z
+  .object({
+    version: z.literal(2),
+    ruleset: z.enum(RULESETS),
+    name: z.string(),
+    speciesId: z.string(),
+    backgroundId: z.string(),
+    feats: z.array(z.string()),
+    classes: z
+      .array(
+        z.object({
+          classId: z.enum(CLASS_IDS),
+          level: z.number().int().min(1).max(20),
+          subclassId: z.string().optional(),
+        }),
+      )
+      .min(1),
+    abilities: z.object({ str: score, dex: score, con: score, int: score, wis: score, cha: score }),
+    skillProficiencies: z.array(z.string()),
+    expertise: z.array(z.string()),
+    currentHp: z.number().int(),
+    resourcesUsed: z.record(z.string(), z.number().int().min(0)),
+    rageActive: z.boolean(),
+    notes: z.string(),
+  })
+  .refine((c) => c.classes.reduce((n, k) => n + k.level, 0) <= 20, { message: "Total level cannot exceed 20" });
+
 export type Character = z.infer<typeof CharacterSchema>;
+export type ClassLevel = Character["classes"][number];
