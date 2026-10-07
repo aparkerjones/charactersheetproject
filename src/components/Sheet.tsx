@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   abilityMod,
   abilityScore,
@@ -21,7 +21,7 @@ import { featById } from "@/engine/data/feats";
 import { SPECIES } from "@/engine/data/species";
 import { downloadCharacter, parseCharacter } from "@/engine/file";
 import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
-import { useCharacter } from "@/engine/store";
+import { loadSavedCharacter, useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Ability, type Skill } from "@/engine/types";
 import { AbilityDialog } from "./AbilityDialog";
 import { HpBox } from "./HpBox";
@@ -49,6 +49,15 @@ export function Sheet() {
   const [levelUpOpen, setLevelUpOpen] = useState(false);
   const [abilityOpen, setAbilityOpen] = useState<Ability | null>(null);
   const [editSkills, setEditSkills] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
+
+  useEffect(() => {
+    if (!useCharacter.getState().character) {
+      const saved = loadSavedCharacter();
+      if (saved) load(saved);
+    }
+  }, [load]);
 
   const raging = c?.rageActive ?? false;
   useEffect(() => {
@@ -78,6 +87,8 @@ export function Sheet() {
       }}
     />
   );
+
+  if (!hydrated) return null;
 
   if (!c) {
     return (
@@ -132,17 +143,54 @@ export function Sheet() {
           <button onClick={() => setLevelUpOpen(true)} className="btn-primary">
             Level up
           </button>
-          <button onClick={() => downloadCharacter(c)} className="btn">
-            Download
-          </button>
-          <button onClick={() => fileRef.current?.click()} className="btn">
-            Load
-          </button>
-          <Link href="/create" className="btn">
-            New
-          </Link>
           <ThemeToggle />
-          {fileInput}
+          <div className="relative">
+            <button
+              aria-label="Menu"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+              className="btn !px-3 text-lg leading-none"
+            >
+              ☰
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+                <div role="menu" className="panel absolute right-0 z-30 mt-2 flex w-52 flex-col gap-1 !p-1 shadow-lg">
+                  <button
+                    role="menuitem"
+                    className="rounded px-3 py-2 text-left text-sm hover:bg-line/40"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      downloadCharacter(c);
+                    }}
+                  >
+                    Download character
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="rounded px-3 py-2 text-left text-sm hover:bg-line/40"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      fileRef.current?.click();
+                    }}
+                  >
+                    Load from file
+                  </button>                  <Link
+                    href="/create"
+                    role="menuitem"
+                    className="rounded px-3 py-2 text-sm hover:bg-line/40"
+                    onClick={(e) => {
+                      if (!confirm("Start a new character? The current one stays saved until you finish creating the new one.")) e.preventDefault();
+                    }}
+                  >
+                    New character
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>          {fileInput}
         </div>
       </header>
 
