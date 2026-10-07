@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abilityMod, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
+import { abilityMod, abilityScore, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
 import { activeEffects, canStartRage, rageDamage, rageUses } from "./rage";
 import { applyDamage, applyHealing, grantTempHp, hitDicePool, recoverHitDice } from "./hp";
 import { buildCharacter, emptyDraft, finalAbilities, multiclassIssues, stepIssues, type Draft } from "./creation";
@@ -14,6 +14,7 @@ const base = (over: Partial<Character> = {}): Character => ({
   feats: [],
   classes: [{ classId: "fighter", level: 1 }],
   abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  abilityOverrides: {},
   skillProficiencies: [],
   expertise: [],
   currentHp: 0,
@@ -194,5 +195,14 @@ describe("creation", () => {
     expect(multiclassIssues(scores, ["barbarian"])).toEqual([]);
     expect(multiclassIssues(scores, ["barbarian", "wizard"])).toEqual(["Wizard needs INT 13+ to multiclass."]);
     expect(multiclassIssues({ ...scores, int: 13 }, ["barbarian", "wizard"])).toEqual([]);
+  });
+});
+
+describe("ability override", () => {
+  it("replaces the base score in derived stats", () => {
+    const c = base({ abilityOverrides: { con: 18 } });
+    expect(abilityScore(c, "con")).toBe(18);
+    expect(abilityScore(c, "str")).toBe(10);
+    expect(saveBonus(c, "con")).toBe(abilityMod(18) + proficiencyBonus(1));
   });
 });

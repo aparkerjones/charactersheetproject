@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   abilityMod,
+  abilityScore,
   initiative,
   proficiencyBonus,
   saveBonus,
@@ -19,7 +20,8 @@ import { SPECIES } from "@/engine/data/species";
 import { downloadCharacter, parseCharacter } from "@/engine/file";
 import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
 import { useCharacter } from "@/engine/store";
-import { ABILITIES, SKILLS, type Skill } from "@/engine/types";
+import { ABILITIES, SKILLS, type Ability, type Skill } from "@/engine/types";
+import { AbilityDialog } from "./AbilityDialog";
 import { HpPanel } from "./HpPanel";
 import { LevelUpDialog } from "./LevelUpDialog";
 import { ThemeToggle } from "./ThemeToggle";
@@ -32,7 +34,7 @@ export function Sheet() {
     character: c,
     load,
     update,
-    setAbility,
+
     toggleSkill,
     setResourceUsed,
     setClassLevel,
@@ -43,6 +45,8 @@ export function Sheet() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [levelUpOpen, setLevelUpOpen] = useState(false);
+  const [abilityOpen, setAbilityOpen] = useState<Ability | null>(null);
+  const [editSkills, setEditSkills] = useState(false);
 
   const raging = c?.rageActive ?? false;
   useEffect(() => {
@@ -140,6 +144,7 @@ export function Sheet() {
         </div>
       </header>
 
+      {abilityOpen && <AbilityDialog c={c} ability={abilityOpen} onClose={() => setAbilityOpen(null)} />}
       {levelUpOpen && <LevelUpDialog c={c} onClose={() => setLevelUpOpen(false)} />}
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
@@ -241,25 +246,24 @@ export function Sheet() {
                 {ABILITIES.map((a) => {
                   const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
                   return (
-                    <div key={a} className="rounded-lg border border-line bg-surface-2 p-3 text-center">
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => setAbilityOpen(a)}
+                      aria-label={`${a} ability details`}
+                      className="rounded-lg border border-line bg-surface-2 p-3 text-center transition hover:border-accent"
+                    >
                       <div className="label-caps">{a}</div>
-                      <div className="text-2xl font-bold">{signed(abilityMod(c.abilities[a]))}</div>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        aria-label={`${a} score`}
-                        className="field w-14 text-center"
-                        value={c.abilities[a]}
-                        onChange={(e) => setAbility(a, Math.min(30, Math.max(1, Number(e.target.value) || 1)))}
-                      />
+                      <div className="text-2xl font-bold">{signed(abilityMod(abilityScore(c, a)))}</div>
+                      <div className={`text-sm ${c.abilityOverrides[a] !== undefined ? "font-semibold text-accent" : "text-muted"}`}>
+                        {abilityScore(c, a)}
+                      </div>
                       <div className="mt-2 text-xs text-muted">
                         Save <span className="font-semibold text-foreground">{signed(saveBonus(c, a))}</span>
                         {proficient && <span title="Proficient"> ●</span>}
                         {hasAdvantage(a, "saves") && <span className="ml-1 font-bold text-danger">ADV</span>}
                       </div>
-                    </div>
-                  );
+                    </button>                  );
                 })}
               </div>
             </section>
@@ -268,14 +272,16 @@ export function Sheet() {
 
         <div className="grid gap-5 md:grid-cols-2">
           <section className="panel">
-            <h2 className="panel-title">Skills</h2>
-            <div className="mb-1 flex justify-end gap-3 text-xs text-muted">
-              <span>Prof</span>
-              <span>Expertise</span>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="panel-title !mb-0">Skills</h2>
+              <button className="btn !px-2 !py-1 text-xs" aria-pressed={editSkills} onClick={() => setEditSkills((v) => !v)}>
+                {editSkills ? "Done" : "Edit proficiencies"}
+              </button>
             </div>
             <ul className="divide-y divide-line">
               {(Object.keys(SKILLS) as Skill[]).map((s) => {
                 const proficient = c.skillProficiencies.includes(s);
+                const expert = c.expertise.includes(s);
                 return (
                   <li key={s} className={`flex items-center gap-2 py-1 ${proficient ? "font-medium" : ""}`}>
                     <span className="w-9 text-right tabular-nums">{signed(skillBonus(c, s))}</span>
@@ -283,19 +289,25 @@ export function Sheet() {
                       {label(s)} <span className="text-xs uppercase text-muted">{SKILLS[s]}</span>
                       {hasAdvantage(SKILLS[s], "checks") && <span className="ml-1 text-xs font-bold text-danger">ADV</span>}
                     </span>
-                    <input
-                      type="checkbox"
-                      aria-label={`${label(s)} proficiency`}
-                      checked={proficient}
-                      onChange={() => toggleSkill(s, "skillProficiencies")}
-                    />
-                    <input
-                      type="checkbox"
-                      className="ml-4"
-                      aria-label={`${label(s)} expertise`}
-                      checked={c.expertise.includes(s)}
-                      onChange={() => toggleSkill(s, "expertise")}
-                    />
+                    {editSkills ? (
+                      <>
+                        <label className="flex items-center gap-1 text-xs text-muted">
+                          <input type="checkbox" aria-label={`${label(s)} proficiency`} checked={proficient} onChange={() => toggleSkill(s, "skillProficiencies")} />
+                          Prof
+                        </label>
+                        <label className="flex items-center gap-1 text-xs text-muted">
+                          <input type="checkbox" aria-label={`${label(s)} expertise`} checked={expert} onChange={() => toggleSkill(s, "expertise")} />
+                          Exp
+                        </label>
+                      </>
+                    ) : (
+                      <span
+                        className="w-20 text-right text-xs text-muted"
+                        title={expert ? "Expertise" : proficient ? "Proficient" : "Not proficient"}
+                      >
+                        {expert ? "◆ Expertise" : proficient ? "● Proficient" : "○"}
+                      </span>
+                    )}
                   </li>
                 );
               })}

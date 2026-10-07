@@ -181,6 +181,7 @@ export function buildCharacter(d: Draft): Character {
     feats,
     classes: d.classes.map((k) => ({ ...k })),
     abilities: finalAbilities(d),
+    abilityOverrides: {},
     skillProficiencies: [...new Set([...backgroundSkills(d), ...d.classSkills])],
     expertise: [],
     currentHp: 0,

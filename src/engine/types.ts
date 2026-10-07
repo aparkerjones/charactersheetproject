@@ -120,6 +120,7 @@ export const CharacterSchema = z
       )
       .min(1),
     abilities: z.object({ str: score, dex: score, con: score, int: score, wis: score, cha: score }),
+    abilityOverrides: z.record(z.string(), score).default({}),
     skillProficiencies: z.array(z.string()),
     expertise: z.array(z.string()),
     currentHp: z.number().int(),

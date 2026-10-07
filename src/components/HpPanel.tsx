@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { abilityMod, maxHp } from "@/engine/calc";
+import { abilityMod, abilityScore, maxHp } from "@/engine/calc";
 import { CLASSES } from "@/engine/data/classes";
 import { hitDicePool } from "@/engine/hp";
 import { activeEffects } from "@/engine/rage";
@@ -19,7 +19,7 @@ export function HpPanel({ c }: { c: Character }) {
   const raging = activeEffects(c).resistances.length > 0;
   const dying = c.currentHp === 0;
   const barColor = pct > 50 ? "bg-good" : pct > 25 ? "bg-accent" : "bg-danger";
-  const con = abilityMod(c.abilities.con);
+  const con = abilityMod(abilityScore(c, "con"));
   const done = () => setAmount("");
 
   return (

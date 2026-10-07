@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { totalLevel } from "@/engine/calc";
+import { abilityScore, totalLevel } from "@/engine/calc";
 import { multiclassIssues } from "@/engine/creation";
 import { CLASSES } from "@/engine/data/classes";
 import { useCharacter } from "@/engine/store";
-import type { Character, ClassId } from "@/engine/types";
+import { ABILITIES, type Ability, type Character, type ClassId } from "@/engine/types";
 
 export function LevelUpDialog({ c, onClose }: { c: Character; onClose: () => void }) {
   const { levelUp, setSubclass } = useCharacter();
@@ -14,11 +14,12 @@ export function LevelUpDialog({ c, onClose }: { c: Character; onClose: () => voi
   const [subclass, setSub] = useState("");
 
   const atCap = totalLevel(c) >= 20;
+  const effectiveScores = Object.fromEntries(ABILITIES.map((a) => [a, abilityScore(c, a)])) as Record<Ability, number>;
   const currentIds = c.classes.map((k) => k.classId as ClassId);
 
   const options = (Object.keys(CLASSES) as ClassId[]).map((id) => {
     const existing = c.classes.find((k) => k.classId === id);
-    const issues = existing ? [] : multiclassIssues(c.abilities, [...currentIds, id]);
+    const issues = existing ? [] : multiclassIssues(effectiveScores, [...currentIds, id]);
     return { id, existing, issues, allowed: !atCap && (override || issues.length === 0) };
   });
 

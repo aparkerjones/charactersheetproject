@@ -9,7 +9,7 @@ interface State {
   character: Character | null;
   load: (c: Character) => void;
   update: (patch: Partial<Character>) => void;
-  setAbility: (a: Ability, score: number) => void;
+  setAbilityOverride: (a: Ability, score: number | null) => void;
   toggleSkill: (skill: string, kind: "skillProficiencies" | "expertise") => void;
   setResourceUsed: (id: string, used: number) => void;
   setClassLevel: (classId: string, level: number) => void;
@@ -35,7 +35,13 @@ export const useCharacter = create<State>((set, get) => {
     character: null,
     load: (character) => set({ character }),
     update: (p) => patch(() => p),
-    setAbility: (a, score) => patch((c) => ({ abilities: { ...c.abilities, [a]: score } })),
+    setAbilityOverride: (a, score) =>
+      patch((c) => {
+        const next = { ...c.abilityOverrides };
+        if (score === null) delete next[a];
+        else next[a] = Math.min(30, Math.max(1, Math.round(score)));
+        return { abilityOverrides: next };
+      }),
     toggleSkill: (skill, kind) =>
       patch((c) => ({
         [kind]: c[kind].includes(skill) ? c[kind].filter((s) => s !== skill) : [...c[kind], skill],
