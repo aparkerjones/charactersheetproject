@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { maxHp } from "./calc";
 import { CLASSES } from "./data/classes";
-import { applyDamage, applyHealing, grantTempHp, recoverHitDice } from "./hp";
+import { applyDamage, applyHealing, recoverHitDice } from "./hp";
 import { canStartRage } from "./rage";
 import type { Ability, Character } from "./types";
 
@@ -19,7 +19,7 @@ interface State {
   rest: (kind: "short" | "long") => void;
   damage: (amount: number, halve?: boolean) => void;
   heal: (amount: number) => void;
-  setTempHp: (amount: number) => void;
+  setTempHp: (amount: number) => void; // exact value, for corrections
   setDeathSaves: (kind: "successes" | "failures", count: number) => void;
   spendHitDie: (classId: string, healed: number) => void;
 }
@@ -95,7 +95,7 @@ export const useCharacter = create<State>((set, get) => {
       }),
     damage: (amount, halve) => patch((c) => applyDamage(c, amount, halve)),
     heal: (amount) => patch((c) => applyHealing(c, amount)),
-    setTempHp: (amount) => patch((c) => ({ tempHp: grantTempHp(c, amount) })),
+    setTempHp: (amount) => patch(() => ({ tempHp: Math.max(0, Math.floor(amount)) })),
     setDeathSaves: (kind, count) =>
       patch((c) => ({ deathSaves: { ...c.deathSaves, [kind]: Math.min(3, Math.max(0, count)) } })),
     // The player rolls the die themselves and enters the total healed.

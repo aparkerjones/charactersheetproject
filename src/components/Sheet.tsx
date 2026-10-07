@@ -24,7 +24,7 @@ import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
 import { useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Ability, type Skill } from "@/engine/types";
 import { AbilityDialog } from "./AbilityDialog";
-import { HpPanel } from "./HpPanel";
+import { HpBox } from "./HpBox";
 import { LevelUpDialog } from "./LevelUpDialog";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -151,7 +151,7 @@ export function Sheet() {
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
 
-        <section className="flex flex-wrap items-center gap-3">
+        <section className="flex flex-wrap items-start gap-3">
           {c.classes.map((k) => {
             const def = CLASSES[k.classId];
             const unlock = def.subclassLevel[c.ruleset];
@@ -190,40 +190,57 @@ export function Sheet() {
               </div>
             );
           })}
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex items-start gap-3">
+            <div className="flex gap-2">
             <button onClick={() => rest("short")} className="btn" title="Recovers some class resources">
               Short rest
             </button>
             <button onClick={() => rest("long")} className="btn" title="Restores HP, resources and half your hit dice">
               Long rest
             </button>
+            </div>
+            <HpBox c={c} />
           </div>
         </section>
 
-        {barbarian && (
-          <section className="panel flex flex-wrap items-center gap-4 !py-3">
-            <label className="flex items-center gap-2 text-lg font-bold">
-              <input
-                type="checkbox"
-                className="h-5 w-5 accent-[var(--accent)]"
-                checked={c.rageActive}
-                disabled={!c.rageActive && !canStartRage(c)}
-                onChange={toggleRage}
-              />
-              Rage
-            </label>
-            {Number.isFinite(rageMax) ? (
-              <div className="flex gap-1.5" aria-label={`${Math.max(0, rageMax - rageUsed)} of ${rageMax} rages left`}>
-                {Array.from({ length: rageMax }, (_, i) => (
-                  <input key={i} type="checkbox" readOnly tabIndex={-1} checked={i < rageUsed} className="pointer-events-none h-4 w-4 accent-[var(--accent)]" />
-                ))}
-              </div>
-            ) : (
-              <span className="text-sm text-muted">Unlimited</span>
-            )}
-          </section>
-        )}
-
+        <section className="panel flex flex-wrap items-center gap-x-8 gap-y-3 !py-3">
+          {barbarian && (
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-lg font-bold">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 accent-[var(--accent)]"
+                  checked={c.rageActive}
+                  disabled={!c.rageActive && !canStartRage(c)}
+                  onChange={toggleRage}
+                />
+                Rage
+              </label>
+              {Number.isFinite(rageMax) ? (
+                <div className="flex gap-1.5" aria-label={`${Math.max(0, rageMax - rageUsed)} of ${rageMax} rages left`}>
+                  {Array.from({ length: rageMax }, (_, i) => (
+                    <input key={i} type="checkbox" readOnly tabIndex={-1} checked={i < rageUsed} className="pointer-events-none h-4 w-4 accent-[var(--accent)]" />
+                  ))}
+                </div>
+              ) : (
+                <span className="text-sm text-muted">Unlimited</span>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Stat title="Armor class" value={String(armorClass(c))} />
+            <Stat title="Initiative" value={signed(initiative(c))} />
+            <Stat title="Speed" value={`${speed(c)} ft`} />
+            <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
+            {dc !== null && <Stat title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />}
+            {fx.resistances.length > 0 && <Stat title="Resistances" value={fx.resistances.map((r) => r.slice(0, 5)).join(", ")} />}
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Stat title="Passive Perception" value={String(passiveScore(c, "perception"))} />
+            <Stat title="Passive Investigation" value={String(passiveScore(c, "investigation"))} />
+            <Stat title="Passive Insight" value={String(passiveScore(c, "insight"))} />
+          </div>
+        </section>
         <section aria-label="Abilities" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {ABILITIES.map((a) => {
             const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
@@ -250,35 +267,7 @@ export function Sheet() {
           })}
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <HpPanel c={c} />
 
-          <div className="space-y-5">
-            <section className="panel">
-              <h2 className="panel-title">Combat</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-                <Stat title="Armor class" value={String(armorClass(c))} />
-                <Stat title="Initiative" value={signed(initiative(c))} />
-                <Stat title="Speed" value={`${speed(c)} ft`} />
-                <Stat title="Proficiency" value={signed(proficiencyBonus(level))} />
-                {dc !== null ? (
-                  <Stat title="Spell save DC" value={fx.spellcastingBlocked ? "Raging" : String(dc)} />
-                ) : (
-                  <Stat title="Resistances" value={fx.resistances.length ? "B / P / S" : "None"} />
-                )}
-              </div>
-            </section>
-
-            <section className="panel">
-              <h2 className="panel-title">Passive senses</h2>
-              <div className="grid grid-cols-3 gap-4">
-                <Stat title="Perception" value={String(passiveScore(c, "perception"))} />
-                <Stat title="Investigation" value={String(passiveScore(c, "investigation"))} />
-                <Stat title="Insight" value={String(passiveScore(c, "insight"))} />
-              </div>
-            </section>
-          </div>
-        </div>
         <div className="grid gap-5 md:grid-cols-2">
           <section className="panel">
             <div className="mb-2 flex items-center justify-between">

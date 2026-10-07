@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { abilityMod, abilityScore, armorClass, passiveScore, initiative, maxHp, proficiencyBonus, saveBonus, skillBonus, speed, spellSaveDc } from "./calc";
 import { activeEffects, canStartRage, rageDamage, rageUses } from "./rage";
-import { applyDamage, applyHealing, grantTempHp, hitDicePool, recoverHitDice } from "./hp";
+import { resolveDamage, applyDamage, applyHealing, grantTempHp, hitDicePool, recoverHitDice } from "./hp";
 import { buildCharacter, emptyDraft, finalAbilities, multiclassIssues, stepIssues, type Draft } from "./creation";
 import type { Character } from "./types";
 
@@ -223,5 +223,16 @@ describe("armor class and passives", () => {
     const c = base({ skillProficiencies: ["perception"], abilities: { ...base().abilities, wis: 14 } });
     expect(passiveScore(c, "perception")).toBe(10 + abilityMod(14) + proficiencyBonus(1));
     expect(passiveScore(c, "insight")).toBe(10 + abilityMod(14));
+  });
+});
+
+describe("typed damage", () => {
+  const raging = base({ classes: [{ classId: "barbarian", level: 3 }], rageActive: true });
+  it("halves resisted types (rounded down) and leaves others", () => {
+    expect(resolveDamage(raging, 9, "Slashing")).toBe(4);
+    expect(resolveDamage(raging, 9, "Fire")).toBe(9);
+  });
+  it("applies no resistance when not raging", () => {
+    expect(resolveDamage({ ...raging, rageActive: false }, 9, "Slashing")).toBe(9);
   });
 });

@@ -1,4 +1,5 @@
 import { maxHp } from "./calc";
+import { activeEffects } from "./rage";
 import type { Character } from "./types";
 
 export type HpState = Pick<Character, "currentHp" | "tempHp" | "deathSaves">;
@@ -42,3 +43,26 @@ export function recoverHitDice(c: Character, hitDie: (id: Character["classes"][n
   }
   return used;
 }
+
+export const DAMAGE_TYPES = [
+  "Acid",
+  "Bludgeoning",
+  "Cold",
+  "Fire",
+  "Force",
+  "Lightning",
+  "Necrotic",
+  "Piercing",
+  "Poison",
+  "Psychic",
+  "Radiant",
+  "Slashing",
+  "Thunder",
+] as const;
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+export const isResistant = (c: Character, type: DamageType) => activeEffects(c).resistances.includes(type);
+
+// Resistance halves damage, rounded down.
+export const resolveDamage = (c: Character, amount: number, type: DamageType) =>
+  Math.max(0, Math.floor(isResistant(c, type) ? amount / 2 : amount));
