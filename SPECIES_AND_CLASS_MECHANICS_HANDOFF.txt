@@ -1,0 +1,303 @@
+CHARACTER SHEET PROJECT - AI CONTINUATION HANDOFF
+Updated: 2026-10-07
+Repository: aparkerjones/charactersheetproject
+Workspace: C:\Users\parko\Documents\charactersheetproject
+
+PURPOSE
+Continue implementing the D&D character sheet's 2014 and 2024 rules. The user wants
+mechanics implemented without copying long rulebook descriptions. Apply deterministic
+effects automatically; where a feature needs a die roll, ask the player to roll and
+enter the result in a clear prompt. Do not claim complete coverage until every included
+species/class/subclass mechanic has actually been implemented and validated.
+
+PRIMARY REFERENCES
+2014 lineage index:
+  https://dnd5e.wikidot.com/lineage
+2024 species index:
+  https://dnd2024.wikidot.com/species:all
+2014 lineage pages use URLs such as:
+  https://dnd5e.wikidot.com/lineage:elf
+2024 species pages use URLs such as:
+  https://dnd2024.wikidot.com/species:elf
+Class reference indexes:
+  https://dnd5e.wikidot.com/
+  https://dnd2024.wikidot.com/
+Cleric class references:
+  https://dnd5e.wikidot.com/cleric
+  https://dnd2024.wikidot.com/cleric
+
+The species pages were fetched and checked on 2026-10-07. The 2014 index had 83
+unique linked pages, including setting-specific and UA links. The 2024 index had 25
+unique linked pages (Dhampir occurs twice in the index and is represented once in
+the app). All 108 unique species/lineage page requests returned successfully in the
+source sweep. No page descriptions were copied into the app; source URLs are retained
+on species entries for user reference.
+
+USER SCOPE / REQUIREMENTS
+- Include all playable links on the two indexes, including setting-specific and UA
+  2014 entries.
+- Species and mechanics data are bundled in the app for offline viewing.
+- Implement mechanics, not copied prose. Keep summaries terse and paraphrased.
+- Automatically calculate deterministic results. Prompt the player for required rolls.
+- 2014 and 2024 are distinct rulesets; do not blend their progression or effects.
+- Static JSON is fine for a name roster; TypeScript is the current home for typed
+  mechanics and calculation logic. No database is currently needed.
+- Species cards should all have equal height equal to the tallest card's natural
+  content height, not a fixed pixel height; desktop should display up to three cards
+  per row.
+- Several species have subraces/lineages (notably elf, dwarf, gnome, tiefling).
+  Make applicable choices explicit and persist them with the character.
+
+CURRENT SPECIES IMPLEMENTATION
+Primary data: src/engine/data/species.ts
+Types: src/engine/types.ts (SpeciesDefinition, SpeciesVariantDefinition)
+Creation model/validation/persistence: src/engine/creation.ts (Draft includes
+speciesVariantId and speciesChoices; variant required when species data lists variants;
+2014 species, variant, and selected ability bonuses combine, with
+replaceAbilityBonuses for replacement cases)
+Derived values: src/engine/calc.ts (species speed, initiative proficiency, skills,
+and Hill Dwarf HP per level)
+Passive defenses: src/engine/passives.ts (species natural armor and AC bonus)
+Resistance calculation: src/engine/rage.ts (includes species resistance and rage)
+Creation UI and variant chooser: src/components/CreationWizard.tsx
+Sheet species panel: src/components/Sheet.tsx
+Coverage: src/engine/engine.test.ts
+
+Roster counts: 83 in SPECIES["2014"], 25 in SPECIES["2024"]. Every roster option has
+a sourceUrl. At the latest update, every roster option has a concise typed profile and
+is marked "partial"; this means it has source-derived mechanics data, not complete
+engine automation. Keep the distinction between partial profiles and finished
+mechanics visible; some additions remain summaries/choice prompts only.
+
+Variant choices presently listed:
+- 2014 Elf: Drow, High Elf, Wood Elf.
+- 2014 Dwarf: Hill Dwarf, Mountain Dwarf.
+- 2014 Gnome: Forest Gnome, Rock Gnome.
+- 2014 Tiefling: Asmodeus, Feral, Devil's Tongue, Hellfire, Winged, Levistus.
+- 2014 Aasimar: Protector, Scourge, Fallen.
+- 2014 Eladrin: Autumn, Winter, Spring, Summer.
+- 2014 Shifter: Beasthide, Longtooth, Swiftstride, Wildhunt.
+- 2024 Elf: Drow, High Elf, Wood Elf, Lorwyn Elf, Shadowmoor Elf.
+- 2024 Gnome: Forest Gnome, Rock Gnome.
+- 2024 Tiefling: Abyssal, Chthonic, Infernal.
+Selected benefits currently affecting engine results include 2014 ability score
+bonuses, species/variant movement, darkvision, resistance, skill proficiencies,
+initiative proficiency, natural armor, AC bonuses, and Hill Dwarf HP/level. Most
+species spells, flexible choices, special actions, condition saves, and limited-use
+traits are still display-only or require manual handling.
+
+Selected creation choices are now implemented for 2014 Half-Elf and Changeling plus
+2024 Human, Dragonborn, Changeling, and Shifter. The choice schema supports selected
+ability bonuses, skill proficiencies, resistances, and feat IDs. Selections are
+validated, saved in the optional version-2 creation draft, restored for editing,
+included in derived species traits and effects, and summarized on the review screen.
+Species/variant changes clear stale picks. For example, Dragonborn ancestry applies
+its selected resistance, and Human choices grant the selected skill and Origin feat.
+This is an initial slice, not complete species-choice coverage; choices requiring
+actions, spells, tools, or more involved rules are not yet implemented.
+
+Latest mechanics batch: 2014 Aarakocra, Aasimar (Protector/Scourge/Fallen),
+Changeling, Deep Gnome, Duergar, Eladrin (four seasons), Fairy, and Firbolg now have
+partial typed profiles with selected ability bonuses, senses, resistances, movement
+modes, and concise trait summaries. Species and variant flight/swim speeds are shown
+on creation cards and the sheet, and variant movement values merge into the selected
+species profile. These traits are not complete action implementations; in particular,
+flight restrictions, flexible ability/skill choices, spells, transformations, and
+limited-use actions still need wiring. Added engine coverage verifies key profile
+values and Aasimar variant effects.
+
+Follow-up coverage batch: Added partial profiles for remaining core/exotic and
+monstrous 2014 lineages (four Genasi, Githyanki/Githzerai, Goliath, Harengon,
+Kenku, Locathah, Owlin, Satyr, Sea Elf, Shadar-Kai, Tabaxi, Tortle, Triton,
+Verdan, Bugbear, Centaur, Goblin, Grung, Hobgoblin, Kobold, Lizardfolk,
+Minotaur, Orc, Shifter, Yuan-Ti). Added selected 2014 Shifter subtypes and basic
+automatic effects for species-granted skills, Harengon initiative proficiency,
+natural armor, resistance, and movement-mode display.
+
+Also added partial profiles for the remaining 2014 setting/additional-source and UA
+roster (Aetherborn, Autognome, Aven, Custom Lineage, Dhampir, Astral Elf, Giff,
+Glitchling, Hadozee, Hexblood, Kender, Khenra, Kor, Leonin, Loxodon, Merfolk,
+Naga, Owlfolk, Plasmoid, Rabbitfolk, Reborn, Revenant, Simic Hybrid, Siren,
+Thri-kreen, Vampire, Vedalken, Viashino, Warforged, plus separate listed UA
+versions). Added data for Kalashtar as well. These remain partial; the mixed-source
+pages need edition/source reconciliation.
+
+Also added partial profiles for the remaining 2024 roster (Changeling, Kalashtar,
+Khoravar, Shifter, Warforged, Boggart, Faerie, Flamekin, Lorwyn Changeling,
+Rimekin, Dhampir, Hexblood, Lupin, Reborn, Duskling). All 25 entries in the 2024
+roster now have at least a concise profile, but remain marked partial. The profiles
+were checked against the linked species pages; spellcasting and action/resource
+support, player-selected skill/tool/ability choices, conditions, and several
+limited-use effects are not yet wired. Do not call species mechanics finished.
+
+LATEST UI REQUEST COMPLETED
+SpeciesStep now renders all roster cards in one grid so every implicit row shares one
+sizing context across category boundaries. Category labels are shown on the card;
+source links have a consistent footer. Cards have no fixed height or overflow cap.
+Grid uses auto-rows-fr, sm:grid-cols-2, and lg:grid-cols-3. Variant cards use the
+same responsive three-column/dynamic row sizing. Browser verification at desktop
+width confirmed 83 roster cards all had identical 232x202 dimensions and grid
+computed to three 232px columns; Hill/Mountain Dwarf variant cards were both 130px
+high. File: src/components/CreationWizard.tsx.
+
+KNOWN GAPS / NEXT WORK
+- Finish species engine automation beyond the concise profile data: spell
+  choices/cantrips and rest-limited spells, senses, defenses, proficiencies,
+  limited-use actions, ancestry choices, flexible ability bonuses, and feature prompts.
+- Extend the declarative choice schema and creation UI to remaining species and
+  variants with selected ability/skill/tool/feat/ancestry benefits. Existing saves
+  without speciesChoices reopen with an empty selection object.
+- Add species action/roll prompt model and wire into Sheet/store. Reuse the action
+  dialog pattern in src/engine/actions.ts, src/components/RuleActionDialog.tsx,
+  src/engine/store.ts; avoid inaccurate no-op buttons.
+- Profiles now exist for all roster entries, but link every listed effect into
+  calculations, resource tracking, rests, sheet display, and creation choices.
+- 2014 linked index includes UA entries. Label UA and setting-only lineages distinctly
+  and avoid presenting playtest rules as core rules.
+- Verify mechanics directly against reference pages and test exact thresholds, uses,
+  rest recovery, and scaling. Source pages may contain variants beyond index entries.
+- Class work is ALSO incomplete; see details below.
+
+CLASS MECHANICS WORK (FROM PRIOR SESSION)
+Core mechanics files:
+- src/engine/data/classProfiles.ts: baseline profiles for all 13 classes.
+- src/engine/data/roster.ts: class roster lookups and subclass names.
+- src/engine/spells.ts: caster level, multiclass slots, Warlock pact slots.
+- src/engine/resources.ts: class resource pools and rest recovery.
+- src/engine/actions.ts: starter player-facing action definitions and roll validation.
+- src/engine/passives.ts: shared passive modifiers/unarmored AC options.
+- src/components/RuleActionDialog.tsx: action roll/resource popup.
+- src/engine/data/classes.ts: detailed legacy mechanics remain partial for Barbarian,
+  Fighter, Rogue, Wizard.
+- src/engine/creation.ts: creation/multiclass/subclass validation.
+- src/engine/store.ts and src/components/Sheet.tsx: state/actions/UI wiring.
+- src/engine/engine.test.ts: engine and regression tests.
+
+Foundation covers all class names, hit dice/saves, multiclass requirements, selected
+skills/subclass levels/spellcasting, spell/resource calculations and recovery, plus
+a starter action set (e.g. Second Wind, Action Surge, Bardic Inspiration, Channel
+Divinity, Wild Shape, Monk actions, Lay on Hands). Passive examples include Barbarian
+speed, Bard Jack of All Trades, Paladin Aura of Protection and unarmored AC.
+Channel Divinity now opens a choice popup and spends from the tracked resource pool
+only after the player selects a valid option. Turn Undead is modeled for both rulesets;
+2024 also offers Divine Spark and the Sear Undead rider. The 2014 option set includes
+all 19 Cleric domains in src/content/roster.json, with level-gated features such as
+Read Thoughts, Cloak of Shadows, War God's Blessing, and Oketra's Blessing. The four
+2024 PHB domains (Life, Light, Trickery, War) use their revised Channel options.
+Required dice are shown for the player to roll; feature outcomes remain player/DM
+resolved rather than automatically simulated. Other 2024 legacy domain options use
+their listed 2014 feature prompts because no revised versions were found in the
+linked 2024 class pages. Most other class features and virtually all subclass
+features remain outstanding. Previously
+guessed 2024 class URLs returned 404; verify exact class routes using the index before
+implementing edition-specific progression.
+
+Fighting Style and Expertise choices are now wired through character creation,
+editing, level-up prompts, character persistence, and the class panel on the sheet.
+Choice data is in optional Character.classChoices and the saved Draft.classChoices
+map. Keys use `fighting-style:<classId>`, `fighting-style-cantrips:<classId>`, and
+`expertise:<classId>`. Class levels enforce 2014/2024 Fighter, Paladin, Ranger,
+Bard, and Rogue thresholds. 2024 Ranger Canny adds the chosen skill proficiency
+and Expertise; skill bonuses use the existing doubled-proficiency calculation.
+Fighting styles include the class-eligible PHB styles plus the listed supplemental
+styles; Blessed Warrior and Druidic Warrior record two ruleset-appropriate cantrips.
+The selected cantrips are displayed, but spell casting is not yet implemented.
+Interception now appears as a reaction prompt with its player roll formula. Other
+Fighting Style benefits are shown on the sheet but are not automatically calculated:
+the app does not yet model equipment/armor or weapon attacks. Defense's armor
+condition is called out rather than granting an unconditional AC bonus.
+
+Known boundaries for this pass: Expertise supports skill proficiencies, not
+Thieves' Tools; the tool proficiency model is absent. 2014 optional Deft Explorer
+is not included. Fighting Style effects that depend on attacks, weapons, equipment,
+or turn/reaction state still need combat/equipment support. Cantrip choices do not
+yet have spellcasting actions. The referenced class pages include the source
+mechanics:
+  https://dnd5e.wikidot.com/fighter
+  https://dnd5e.wikidot.com/paladin
+  https://dnd5e.wikidot.com/ranger
+  https://dnd5e.wikidot.com/bard
+  https://dnd5e.wikidot.com/rogue
+  https://dnd2024.wikidot.com/fighter
+  https://dnd2024.wikidot.com/paladin
+  https://dnd2024.wikidot.com/ranger
+  https://dnd2024.wikidot.com/bard
+  https://dnd2024.wikidot.com/rogue
+
+GITHUB PAGES LIVE TEST SETUP
+Deployment preparation is in place but the site has NOT been published:
+- .github/workflows/pages.yml is a manual-only GitHub Actions workflow
+  ("Deploy GitHub Pages"). It installs dependencies, runs tests and lint,
+  builds the static export, prepares its files, and deploys the out artifact.
+- next.config.ts enables static export, basePath /charactersheetproject, and
+  trailingSlash only when GITHUB_PAGES=true. That build disables Cache Components
+  and partial prefetching; normal local/production builds keep them enabled.
+- README.md documents the same deployment path and warns that the site and its
+  character data are public/browser-local respectively.
+- Expected public URL: https://aparkerjones.github.io/charactersheetproject/
+- The workflow and app configuration have not been committed or pushed; GitHub
+  Pages repository settings, plan eligibility, Actions run, and live URL have
+  not been verified. No deployment or remote setting was changed.
+
+To publish a live test site:
+1. Confirm the current changes are ready to publish. This checkout has a large
+   existing set of uncommitted app/mechanics changes; do not discard or overwrite
+   them. Commit and push the intended app changes together with next.config.ts,
+   .github/workflows/pages.yml, and README.md to the repository's main branch.
+   A GitHub Actions workflow_dispatch workflow is not available until its workflow
+   file exists on GitHub.
+2. On GitHub, open aparkerjones/charactersheetproject → Settings → Pages. Under
+   "Build and deployment", set Source to "GitHub Actions". If Pages cannot be
+   enabled for this private repository, confirm the account plan supports Pages
+   from private repositories before changing repository visibility. The user
+   requested a public test site with a private source repo; do not make the source
+   repository public without asking first.
+3. Open the repository's Actions tab → "Deploy GitHub Pages" → "Run workflow".
+   Select branch main and run it. Wait for both the build and deploy jobs to finish
+   successfully. The deploy job's environment link should be the published site.
+4. Visit https://aparkerjones.github.io/charactersheetproject/ and test home-page
+   navigation, character creation, and save/load in the browser. The site is
+   publicly accessible without a GitHub login. Updates do not deploy on push;
+   repeat step 3 after pushing each change.
+
+The app keeps character saves in local storage or user-downloaded files; it has no
+shared account/database. Each tester/browser has separate data, and private or
+sensitive character data should not be entered on the public site.
+
+Pages configuration verification on 2026-10-07:
+- GITHUB_PAGES=true npm run build passed and emitted out/index.html and
+  out/create/index.html with /charactersheetproject/ asset paths.
+- Local static-export smoke test opened the home page and navigated into the
+  character-creation wizard. This does not substitute for a GitHub-hosted test.
+- npm run build passed without the Pages flag; npm test passed (41 tests);
+  npm run lint passed; Problems reported no next.config.ts issues; git diff
+  --check passed.
+
+ARCHITECTURE / SAFETY NOTES
+- Keep roster names and typed rule formulas separate. JSON is appropriate for static
+  roster text; formulas/resources/actions belong in TypeScript.
+- Character uses version 2, creation draft is optionally saved and can be absent on old
+  imported characters. Add new creation fields with optional/null-safe defaults.
+- Avoid large copied descriptions from the reference sites. Use mechanical facts and
+  concise paraphrases only; preserve source links.
+- Existing worktree already contains many uncommitted user/session changes. Never
+  revert or discard unrelated work; inspect before edits.
+- Next.js is version 16.4.0 with breaking changes. Before changing Next APIs, inspect
+  the matching guide in node_modules/next/dist/docs/ (relative to repository root).
+
+VALIDATION AT LAST HANDOFF
+Latest changes: npm test -- --run src/engine/engine.test.ts passed, 41 tests; npm run lint
+passed; npm run build passed; Problems check found no errors; git diff --check passed.
+No species roster entry is currently names-only. Every species is still marked
+partial until its choices, actions, resources, spell effects, and other triggered
+features are implemented. Browser previously verified the equal-height, three-column
+card layout; this batch did not alter the layout.
+
+CONTINUATION GUIDANCE
+Start by reading this file plus relevant source files, not the entire chat. Continue
+the requested species-mechanics work by wiring profile traits to calculations,
+creation choices, action/resource handling, spellcasting, and player prompts.
+Distinguish the selected 2014 source version when a page presents multiple versions.
+Validate with exact tests for mechanics, uses, rest recovery, movement, defenses, and
+creation choices. Expand remaining species choice coverage and action wiring, then
+continue class/subclass selected-choice and feature automation.

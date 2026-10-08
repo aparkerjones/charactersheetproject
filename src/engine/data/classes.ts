@@ -10,7 +10,7 @@ const barbarianRages = (l: number, r: Ruleset) => {
 };
 
 // Features are short paraphrases; verify against your sources.
-export const CLASSES: Record<ClassId, ClassDefinition> = {
+export const CLASSES: Partial<Record<ClassId, ClassDefinition>> = {
   barbarian: {
     id: "barbarian",
     name: "Barbarian",

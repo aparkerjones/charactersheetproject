@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { abilityMod, abilityScore, saveBonus, skillBonus } from "@/engine/calc";
-import { CLASSES } from "@/engine/data/classes";
+import { CLASS_PROFILES } from "@/engine/data/classProfiles";
 import { useCharacter } from "@/engine/store";
 import { SKILLS, type Ability, type Character, type Skill } from "@/engine/types";
 
@@ -24,7 +24,7 @@ export function AbilityDialog({ c, ability, onClose }: { c: Character; ability: 
   const [draft, setDraft] = useState(String(override ?? ""));
 
   const score = abilityScore(c, ability);
-  const proficient = CLASSES[c.classes[0].classId].saves.includes(ability);
+  const proficient = CLASS_PROFILES[c.classes[0].classId].saves.includes(ability);
   const skills = (Object.keys(SKILLS) as Skill[]).filter((s) => SKILLS[s] === ability);
 
   const apply = (value: string) => {

@@ -1,4 +1,5 @@
 import { maxHp } from "./calc";
+import { CLASS_PROFILES } from "./data/classProfiles";
 import { activeEffects } from "./rage";
 import type { Character } from "./types";
 
@@ -26,17 +27,21 @@ export function grantTempHp(c: Character, amount: number): number {
 }
 
 export const hitDicePool = (c: Character) =>
-  c.classes.map((k) => ({
-    classId: k.classId,
-    total: k.level,
-    used: Math.min(c.hitDiceUsed[k.classId] ?? 0, k.level),
-  }));
+  c.classes.flatMap((k) => {
+    return [{
+      classId: k.classId,
+      hitDie: CLASS_PROFILES[k.classId].hitDie,
+      total: k.level,
+      used: Math.min(c.hitDiceUsed[k.classId] ?? 0, k.level),
+    }];
+  });
 
 // A long rest returns half your total hit dice (minimum one), largest dice first.
 export function recoverHitDice(c: Character, hitDie: (id: Character["classes"][number]["classId"]) => number) {
-  let budget = Math.max(1, Math.floor(c.classes.reduce((n, k) => n + k.level, 0) / 2));
+  const eligible = c.classes;
+  let budget = Math.max(1, Math.floor(eligible.reduce((n, k) => n + k.level, 0) / 2));
   const used = { ...c.hitDiceUsed };
-  for (const k of [...c.classes].sort((a, b) => hitDie(b.classId) - hitDie(a.classId))) {
+  for (const k of [...eligible].sort((a, b) => hitDie(b.classId) - hitDie(a.classId))) {
     const give = Math.min(budget, used[k.classId] ?? 0);
     used[k.classId] = (used[k.classId] ?? 0) - give;
     budget -= give;

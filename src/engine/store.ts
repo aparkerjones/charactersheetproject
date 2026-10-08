@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import { maxHp } from "./calc";
-import { CLASSES } from "./data/classes";
+import { CLASS_PROFILES } from "./data/classProfiles";
+import { resolveClassAction } from "./actions";
 import { applyDamage, applyHealing, recoverHitDice } from "./hp";
+import { recoverResourceUses } from "./resources";
 import { saveCharacter } from "./storage";
 import { canStartRage } from "./rage";
-import type { Ability, Character } from "./types";
+import type { Ability, Character, ClassId } from "./types";
 
 interface State {
   character: Character | null;
@@ -13,6 +15,7 @@ interface State {
   setAbilityOverride: (a: Ability, score: number | null) => void;
   toggleSkill: (skill: string, kind: "skillProficiencies" | "expertise") => void;
   setResourceUsed: (id: string, used: number) => void;
+  activateClassAction: (actionId: string, inputValue?: number, choiceId?: string) => boolean;
   setClassLevel: (classId: string, level: number) => void;
   setSubclass: (classId: string, subclassId: string) => void;
   levelUp: (classId: string) => void;
@@ -22,7 +25,7 @@ interface State {
   heal: (amount: number) => void;
   setTempHp: (amount: number) => void; // exact value, for corrections
   setDeathSaves: (kind: "successes" | "failures", count: number) => void;
-  spendHitDie: (classId: string, healed: number) => void;
+  spendHitDie: (classId: ClassId, healed: number) => void;
 }
 
 export const useCharacter = create<State>((set, get) => {
@@ -48,6 +51,20 @@ export const useCharacter = create<State>((set, get) => {
         [kind]: c[kind].includes(skill) ? c[kind].filter((s) => s !== skill) : [...c[kind], skill],
       })),
     setResourceUsed: (id, used) => patch((c) => ({ resourcesUsed: { ...c.resourcesUsed, [id]: used } })),
+    activateClassAction: (actionId, inputValue, choiceId) => {
+      const c = get().character;
+      if (!c) return false;
+      const result = resolveClassAction(c, actionId, inputValue, choiceId);
+      if (!result) return false;
+      set({
+        character: {
+          ...c,
+          resourcesUsed: result.resourcesUsed,
+          ...(result.healing !== undefined ? applyHealing(c, result.healing) : {}),
+        },
+      });
+      return true;
+    },
     setClassLevel: (classId, level) =>
       patch((c) => {
         const others = c.classes.filter((k) => k.classId !== classId).reduce((n, k) => n + k.level, 0);
@@ -74,22 +91,15 @@ export const useCharacter = create<State>((set, get) => {
       }),
     rest: (kind) =>
       patch((c) => {
-        const used = { ...c.resourcesUsed };
-        for (const k of c.classes) {
-          for (const r of CLASSES[k.classId].resources) {
-            const recovery = kind === "long" ? Infinity : r.shortRestRecovery(c.ruleset);
-            used[r.id] = Math.max(0, (used[r.id] ?? 0) - recovery);
-          }
-        }
         return {
-          resourcesUsed: used,
+          resourcesUsed: recoverResourceUses(c, kind),
           rageActive: false,
           ...(kind === "long"
             ? {
                 currentHp: maxHp(c),
                 tempHp: 0,
                 deathSaves: { successes: 0, failures: 0 },
-                hitDiceUsed: recoverHitDice(c, (id) => CLASSES[id].hitDie),
+                hitDiceUsed: recoverHitDice(c, (id) => CLASS_PROFILES[id].hitDie),
               }
             : {}),
         };

@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# D&D Character Sheet
 
-## Getting Started
+## Local development
 
-First, run the development server:
+Install dependencies and start the development server:
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Run validation locally with `npm test` and `npm run lint`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## GitHub Pages online test
 
-## Learn More
+The manual workflow in `.github/workflows/pages.yml` runs tests and lint, builds a
+static export, and deploys it to GitHub Pages. The Pages build uses the project
+URL path `/charactersheetproject`; ordinary local builds are unaffected.
+The Pages export disables Next.js Cache Components and partial prefetching,
+which require server capabilities not available on a static host.
 
-To learn more about Next.js, take a look at the following resources:
+To publish, configure **Settings → Pages → Build and deployment → Source** to
+**GitHub Actions**, then run **Deploy GitHub Pages** from the repository's Actions
+tab using **Run workflow**. The workflow is intentionally manual and does not
+publish automatically on every push.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+GitHub Pages sites are public by default, even when their source repository is
+private. Private Pages access requires an organization-owned repository on GitHub
+Enterprise Cloud. A private source repository with a public Pages site also
+requires an account plan that supports Pages for private repositories.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app currently stores characters in the browser's local storage; Pages will
+not synchronize character data between devices or users. Do not enter sensitive
+information into the public test site.

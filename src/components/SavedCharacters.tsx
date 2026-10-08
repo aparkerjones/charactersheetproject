@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BACKGROUNDS } from "@/engine/data/backgrounds";
-import { CLASSES } from "@/engine/data/classes";
+import { className } from "@/engine/data/roster";
 import { totalLevel } from "@/engine/calc";
 import { deleteSaved, listSaved } from "@/engine/storage";
 import type { Character } from "@/engine/types";
@@ -32,7 +32,7 @@ export function SavedCharacters({
             >
               <span className="font-semibold">{c.name || "Unnamed"}</span>
               <span className="block text-xs text-muted">
-                {c.classes.map((k) => `${CLASSES[k.classId].name} ${k.level}`).join(" / ")} · Lv {totalLevel(c)} · {bg}
+                {c.classes.map((k) => `${className(k.classId)} ${k.level}`).join(" / ")} · Lv {totalLevel(c)} · {bg}
               </span>
             </button>
             <button

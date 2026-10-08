@@ -12,6 +12,7 @@ import {
   backgroundSkills,
   buildCharacter,
   draftFromCharacter,
+  draftSkillProficiencies,
   draftTotalLevel,
   emptyDraft,
   emptyScores,
@@ -22,10 +23,14 @@ import {
 } from "@/engine/creation";
 import { BACKGROUNDS } from "@/engine/data/backgrounds";
 import { CLASSES } from "@/engine/data/classes";
+import { CLASS_PROFILES } from "@/engine/data/classProfiles";
+import { className, rosterSubclassName, rosterSubclasses, rosterSubclassNames } from "@/engine/data/roster";
 import { FEATS, featById } from "@/engine/data/feats";
 import { SPECIES } from "@/engine/data/species";
+import { classChoiceRequirements, expertiseKey, fightingStyleCantripsKey, fightingStyleKey } from "@/engine/classChoices";
+import { ClassChoiceFields } from "./ClassChoiceFields";
 import { useCharacter } from "@/engine/store";
-import { ABILITIES, RULESETS, type Ability, type Character, type Skill } from "@/engine/types";
+import { ABILITIES, RULESETS, type Ability, type Character, type Skill, type SpeciesDefinition } from "@/engine/types";
 import { ThemeToggle } from "./ThemeToggle";
 
 const label = (s: string) => s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
@@ -158,25 +163,128 @@ function RulesetStep({ d, setD, locked }: { d: Draft; setD: React.Dispatch<React
 
 function SpeciesStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void }) {
   if (!d.ruleset) return null;
+  const ruleset = d.ruleset;
+  const selectedSpecies = SPECIES[ruleset].find((species) => species.id === d.speciesId);
+  const selectedVariant = selectedSpecies?.variants?.find((variant) => variant.id === d.speciesVariantId);
+  const choices = [...(selectedSpecies?.choices ?? []), ...(selectedVariant?.choices ?? [])];
+  const toggleChoice = (choiceId: string, optionId: string, selectionCount = 1) => {
+    const current = d.speciesChoices[choiceId] ?? [];
+    const selected = current.includes(optionId)
+      ? current.filter((id) => id !== optionId)
+      : selectionCount === 1
+        ? [optionId]
+        : current.length < selectionCount
+          ? [...current, optionId]
+          : current;
+    patch({ speciesChoices: { ...d.speciesChoices, [choiceId]: selected } });
+  };
+  const renderSpecies = (species: SpeciesDefinition) => (
+    <div key={species.id} className="flex h-full flex-col">
+      <button onClick={() => patch({ speciesId: species.id, speciesVariantId: null, speciesChoices: {} })} className="option-card flex h-full w-full flex-1 flex-col" aria-pressed={d.speciesId === species.id}>
+        <div className="flex items-start justify-between gap-2">
+          <span className="font-semibold">{species.name}</span>
+          {species.category && <span className="shrink-0 text-[10px] text-muted">{species.category}</span>}
+        </div>
+        {(species.speed !== undefined || species.asi || species.size || species.darkvisionFt || species.flySpeed || species.swimSpeed || species.climbSpeed || species.resistances?.length || species.skillProficiencies?.length) ? (
+          <div className="text-xs text-muted">
+            {species.speed !== undefined && `Speed ${species.speed} ft`}
+            {species.flySpeed && ` · Fly ${species.flySpeed} ft`}
+            {species.swimSpeed && ` · Swim ${species.swimSpeed} ft`}
+            {species.climbSpeed && ` · Climb ${species.climbSpeed} ft`}
+            {species.size && ` · ${species.size}`}
+            {species.darkvisionFt && ` · Darkvision ${species.darkvisionFt} ft`}
+            {species.resistances?.length && ` · Resistance: ${species.resistances.join(", ")}`}
+            {species.skillProficiencies?.length && ` · Skill: ${species.skillProficiencies.map(label).join(", ")}`}
+            {species.asi && ` · ${Object.entries(species.asi).map(([ability, value]) => `${ability.toUpperCase()} +${value}`).join(", ")}`}
+          </div>
+        ) : null}
+        {species.traits?.length ? (
+          <ul className="mt-1 list-disc pl-4 text-sm text-muted">
+            {species.traits.map((trait) => (
+              <li key={trait}>{trait}</li>
+            ))}
+          </ul>
+        ) : species.mechanicsStatus === "roster-only" ? (
+          <div className="mt-1 text-sm text-muted">Species mechanics are not implemented yet.</div>
+        ) : null}
+        {species.mechanicsStatus === "partial" && (
+          <div className="mt-1 text-xs text-muted">Some selectable traits or actions may still need manual handling.</div>
+        )}
+      </button>
+      {species.sourceUrl && (
+        <a href={species.sourceUrl} target="_blank" rel="noreferrer" className="mt-2 min-h-5 px-3 text-xs text-accent underline">
+          Source page
+        </a>
+      )}
+    </div>
+  );
   return (
     <>
-      <h2 className="text-lg font-semibold">{d.ruleset === "2014" ? "Race" : "Species"}</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {SPECIES[d.ruleset].map((s) => (
-          <button key={s.id} onClick={() => patch({ speciesId: s.id })} className="option-card" aria-pressed={d.speciesId === s.id}>
-            <div className="font-semibold">{s.name}</div>
-            <div className="text-xs text-muted">
-              Speed {s.speed} ft
-              {s.asi && ` · ${Object.entries(s.asi).map(([a, v]) => `${a.toUpperCase()} +${v}`).join(", ")}`}
-            </div>
-            <ul className="mt-1 list-disc pl-4 text-sm text-muted">
-              {s.traits.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </button>
-        ))}
+      <h2 className="text-lg font-semibold">{ruleset === "2014" ? "Race" : "Species"}</h2>
+      <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {SPECIES[ruleset].map(renderSpecies)}
       </div>
+      {selectedSpecies?.variants && selectedSpecies.variants.length > 0 && (
+        <section className="mt-6 space-y-2">
+          <h3 className="font-semibold">Choose a {selectedSpecies.name} lineage or subspecies</h3>
+          <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {selectedSpecies.variants.map((variant) => (
+              <button
+                key={variant.id}
+                onClick={() => patch({ speciesVariantId: variant.id, speciesChoices: {} })}
+                className="option-card flex h-full w-full flex-col"
+                aria-pressed={d.speciesVariantId === variant.id}
+              >
+                <div className="font-semibold">{variant.name}</div>
+                {variant.speed !== undefined && <div className="text-xs text-muted">Speed {variant.speed} ft</div>}
+                {variant.darkvisionFt !== undefined && <div className="text-xs text-muted">Darkvision {variant.darkvisionFt} ft</div>}
+                {variant.flySpeed !== undefined && <div className="text-xs text-muted">Fly {variant.flySpeed} ft</div>}
+                {variant.swimSpeed !== undefined && <div className="text-xs text-muted">Swim {variant.swimSpeed} ft</div>}
+                {variant.climbSpeed !== undefined && <div className="text-xs text-muted">Climb {variant.climbSpeed} ft</div>}
+                {variant.asi && <div className="text-xs text-muted">{Object.entries(variant.asi).map(([ability, value]) => `${ability.toUpperCase()} +${value}`).join(", ")}</div>}
+                {variant.traits && (
+                  <ul className="mt-1 list-disc pl-4 text-sm text-muted">
+                    {variant.traits.map((trait) => <li key={trait}>{trait}</li>)}
+                  </ul>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">Choosing a lineage applies modeled ability bonuses, speed, vision, resistances, and hit-point changes. Other listed features may require manual handling.</p>
+        </section>
+      )}
+      {selectedSpecies && choices.length > 0 && (
+        <section className="mt-6 space-y-3">
+          <h3 className="font-semibold">Species choices</h3>
+          {choices.map((choice) => {
+            const selected = d.speciesChoices[choice.id] ?? [];
+            const count = choice.selectionCount ?? 1;
+            return (
+              <fieldset key={choice.id} className="panel space-y-2 !p-3">
+                <legend className="font-semibold">{choice.label}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {choice.options.map((option) => {
+                    const checked = selected.includes(option.id);
+                    return (
+                      <label key={option.id} className={`rounded-md border border-line px-2 py-1 text-sm ${checked ? "border-accent" : ""}`}>
+                        <input
+                          type={count === 1 ? "radio" : "checkbox"}
+                          name={`species-choice-${choice.id}`}
+                          checked={checked}
+                          onChange={() => toggleChoice(choice.id, option.id, count)}
+                        />{" "}
+                        {option.label}
+                        {option.description && <span className="ml-1 text-muted">({option.description})</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                {count > 1 && <p className="text-xs text-muted">Choose {count}; selected {selected.length}/{count}.</p>}
+              </fieldset>
+            );
+          })}
+        </section>
+      )}
     </>
   );
 }
@@ -335,11 +443,30 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
   const total = draftTotalLevel(d);
   const available = availableClassIds(d);
 
-  const setClasses = (classes: Draft["classes"], classSkills = d.classSkills) => patch({ classes, classSkills });
-  const update = (i: number, p: Partial<Draft["classes"][number]>) =>
-    setClasses(d.classes.map((k, j) => (j === i ? { ...k, ...p } : k)));
+  const setClasses = (classes: Draft["classes"], classSkills = d.classSkills) => {
+    const classIds = new Set(classes.map((entry) => entry.classId));
+    const classChoices = Object.fromEntries(Object.entries(d.classChoices ?? {}).filter(([key]) =>
+      [...classIds].some((id) => key.endsWith(`:${id}`)),
+    ));
+    patch({ classes, classSkills, classChoices });
+  };
+  const update = (i: number, p: Partial<Draft["classes"][number]>) => {
+    const classes = d.classes.map((k, j) => (j === i ? { ...k, ...p } : k));
+    const entry = classes[i];
+    const requirements = classChoiceRequirements(entry.classId, ruleset, entry.level);
+    const classChoices = { ...d.classChoices };
+    if (!requirements.fightingStyle) {
+      delete classChoices[fightingStyleKey(entry.classId)];
+      delete classChoices[fightingStyleCantripsKey(entry.classId)];
+    }
+    const expertiseChoiceKey = expertiseKey(entry.classId);
+    if (classChoices[expertiseChoiceKey]?.length > requirements.expertiseCount) {
+      classChoices[expertiseChoiceKey] = classChoices[expertiseChoiceKey].slice(0, requirements.expertiseCount);
+    }
+    patch({ classes, classChoices });
+  };
 
-  const primary = d.classes[0] && CLASSES[d.classes[0].classId];
+  const primary = d.classes[0] && CLASS_PROFILES[d.classes[0].classId];
   const taken = backgroundSkills(d);
   const toggleSkill = (s: Skill) => {
     const has = d.classSkills.includes(s);
@@ -354,10 +481,11 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
         <div className="grid gap-3 sm:grid-cols-2">
           {available.map((id) => (
             <button key={id} onClick={() => setClasses([{ classId: id, level: 1 }], [])} className="option-card" aria-pressed={false}>
-              <div className="font-semibold">{CLASSES[id].name}</div>
+              <div className="font-semibold">{className(id)}</div>
               <div className="text-xs text-muted">
-                d{CLASSES[id].hitDie} · saves {CLASSES[id].saves.map((s) => s.toUpperCase()).join("/")}
+                d{CLASS_PROFILES[id].hitDie} · saves {CLASS_PROFILES[id].saves.map((s) => s.toUpperCase()).join("/")}
               </div>
+              {!CLASSES[id] && <div className="text-xs text-muted">Core statistics included · class features in progress</div>}
             </button>
           ))}
         </div>
@@ -365,12 +493,17 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
 
       {d.classes.map((k, i) => {
         const def = CLASSES[k.classId];
-        const needsSub = k.level >= def.subclassLevel[ruleset];
+        const subclassLevel = def?.subclassLevel[ruleset] ?? CLASS_PROFILES[k.classId].subclassLevel[ruleset];
+        const needsSub = k.level >= subclassLevel;
+        const implementedSubclasses = def?.subclasses[ruleset] ?? [];
+        const rosterOptions = rosterSubclasses(k.classId).filter(
+          (option) => !implementedSubclasses.some((subclass) => subclass.name === option.name),
+        );
         return (
           <div key={k.classId} className="panel space-y-2 !p-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-semibold">
-                {def.name}
+                {className(k.classId)}
                 {i === 0 && <span className="ml-2 text-xs text-muted">(starting class)</span>}
               </span>
               <label className="text-sm">
@@ -383,7 +516,8 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                   value={k.level}
                   onChange={(e) => {
                     const level = Math.min(20 - (total - k.level), Math.max(1, Number(e.target.value) || 1));
-                    update(i, { level, subclassId: level >= def.subclassLevel[ruleset] ? k.subclassId : undefined });
+                    const subclassId = level >= subclassLevel ? k.subclassId : undefined;
+                    update(i, { level, subclassId });
                   }}
                 />
               </label>
@@ -399,16 +533,45 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                 Subclass{" "}
                 <select className="field" value={k.subclassId ?? ""} onChange={(e) => update(i, { subclassId: e.target.value || undefined })}>
                   <option value="">Choose…</option>
-                  {def.subclasses[ruleset].map((s) => (
+                  {implementedSubclasses.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
+                    </option>
+                  ))}
+                  {rosterOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} (mechanics pending)
                     </option>
                   ))}
                 </select>
               </label>
             ) : (
-              <div className="text-xs text-muted">Subclass unlocks at level {def.subclassLevel[ruleset]}.</div>
+              <div className="text-xs text-muted">Subclass unlocks at level {subclassLevel}.</div>
             )}
+            {!def && (
+              <div className="text-xs text-muted">
+                Core statistics are applied. Class and subclass feature effects beyond those statistics are not implemented yet.
+              </div>
+            )}
+            {!needsSub && !def ? (
+              <details className="text-xs text-muted">
+                <summary className="cursor-pointer">Subclass roster</summary>
+                <p className="mt-1">{rosterSubclassNames(k.classId).join(", ") || "None listed"}</p>
+              </details>
+            ) : null}
+            <ClassChoiceFields
+              classId={k.classId}
+              ruleset={ruleset}
+              level={k.level}
+              choices={d.classChoices ?? {}}
+              proficiencies={draftSkillProficiencies(d)}
+              onChange={(updates) => patch({ classChoices: { ...d.classChoices, ...updates } })}
+            />
+            <details className="text-xs text-muted">
+              <summary className="cursor-pointer">Full subclass roster (reference only)</summary>
+              <p className="mt-1">{rosterSubclassNames(k.classId).join(", ") || "None listed"}</p>
+              <p>Mechanical effects for additional subclasses are being implemented.</p>
+            </details>
           </div>
         );
       })}
@@ -437,6 +600,9 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
           </div>
         </div>
       )}
+      {d.classes.length > 0 && !primary && (
+        <p className="text-sm text-muted">No class skill proficiencies are applied until this class’s mechanics are implemented.</p>
+      )}
 
       {d.classes.length > 0 && total < 20 && available.length > 0 && (
         <div className="space-y-1">
@@ -452,7 +618,7 @@ function ClassStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void 
                   onClick={() => setClasses([...d.classes, { classId: id, level: 1 }])}
                   className="btn"
                 >
-                  + {CLASSES[id].name}
+                  + {className(id)}
                 </button>
               );
             })}
@@ -468,6 +634,13 @@ function ReviewStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void
   const issues = allIssues(d);
   if (!d.ruleset) return null;
   const species = SPECIES[d.ruleset].find((s) => s.id === d.speciesId);
+  const speciesVariant = species?.variants?.find((variant) => variant.id === d.speciesVariantId);
+  const speciesChoiceDefinitions = [...(species?.choices ?? []), ...(speciesVariant?.choices ?? [])];
+  const selectedSpeciesOptions = speciesChoiceDefinitions.flatMap((choice) =>
+    (d.speciesChoices[choice.id] ?? [])
+      .map((id) => choice.options.find((option) => option.id === id))
+      .filter((option) => option !== undefined),
+  );
   const bg = BACKGROUNDS[d.ruleset].find((b) => b.id === d.backgroundId);
   const final = finalAbilities(d);
   return (
@@ -485,24 +658,42 @@ function ReviewStep({ d, patch }: { d: Draft; patch: (p: Partial<Draft>) => void
         <dt className="text-muted">Ruleset</dt>
         <dd>{d.ruleset}</dd>
         <dt className="text-muted">Species</dt>
-        <dd>{species?.name}</dd>
+        <dd>{[species?.name, speciesVariant?.name].filter(Boolean).join(" — ")}</dd>
+        {selectedSpeciesOptions.length > 0 && (
+          <>
+            <dt className="text-muted">Species choices</dt>
+            <dd>{selectedSpeciesOptions.map((option) => option.label).join(", ")}</dd>
+          </>
+        )}
         <dt className="text-muted">Background</dt>
         <dd>{bg?.name}</dd>
         <dt className="text-muted">Classes</dt>
         <dd>
           {d.classes
             .map((k) => {
-              const sub = CLASSES[k.classId].subclasses[d.ruleset!].find((s) => s.id === k.subclassId);
-              return `${CLASSES[k.classId].name} ${k.level}${sub ? ` (${sub.name})` : ""}`;
+              const def = CLASSES[k.classId];
+              const sub = def?.subclasses[d.ruleset!].find((s) => s.id === k.subclassId);
+              const subName = sub?.name ?? rosterSubclassName(k.classId, k.subclassId);
+              return `${className(k.classId)} ${k.level}${subName ? ` (${subName})` : ""}`;
             })
             .join(" / ")}
         </dd>
         <dt className="text-muted">Abilities</dt>
         <dd>{ABILITIES.map((a) => `${a.toUpperCase()} ${final[a]}`).join(" · ")}</dd>
         <dt className="text-muted">Skills</dt>
-        <dd>{[...new Set([...backgroundSkills(d), ...d.classSkills])].map(label).join(", ")}</dd>
+        <dd>{[...new Set([...backgroundSkills(d), ...d.classSkills, ...selectedSpeciesOptions.flatMap((option) => option.skillProficiencies ?? [])])].map(label).join(", ")}</dd>
+        {Object.values(d.classChoices ?? {}).some((values) => values.length > 0) && (
+          <>
+            <dt className="text-muted">Class choices</dt>
+            <dd>
+              {Object.entries(d.classChoices ?? {}).flatMap(([key, values]) =>
+                values.map((value) => `${key.split(":")[0].replaceAll("-", " ")}: ${label(value)}`),
+              ).join(", ")}
+            </dd>
+          </>
+        )}
         <dt className="text-muted">Feats</dt>
-        <dd>{[bg?.featId, d.ruleset === "2014" ? d.optionalFeatId : null].filter(Boolean).map((f) => featById(f!)?.name).join(", ") || "None"}</dd>
+        <dd>{[bg?.featId, d.ruleset === "2014" ? d.optionalFeatId : null, ...selectedSpeciesOptions.flatMap((option) => option.featId ? [option.featId] : [])].filter(Boolean).map((f) => featById(f!)?.name).join(", ") || "None"}</dd>
       </dl>
       {issues.length > 0 && <p className="text-danger">Some earlier steps are incomplete: {issues.join(" ")}</p>}
     </>

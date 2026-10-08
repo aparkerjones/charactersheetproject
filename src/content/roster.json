@@ -1,0 +1,57 @@
+{
+  "_note": "Names-only roster for class/subclass selection. Sources: dnd5e.wikidot.com and dnd2024.wikidot.com class lists. Blood Hunter is intentionally excluded for now. Core class profiles live in TypeScript; detailed class and subclass feature effects are implemented there in later phases.",
+  "classes": [
+    { "id": "artificer", "name": "Artificer", "subclasses": [
+      "Alchemist", "Armorer", "Artillerist", "Battle Smith"] },
+    { "id": "barbarian", "name": "Barbarian", "subclasses": [
+      "Path of the Ancestral Guardian", "Path of the Battlerager", "Path of the Beast", "Path of the Berserker",
+      "Path of the Giant", "Path of the Storm Herald", "Path of the Totem Warrior", "Path of Wild Magic", "Path of the Zealot"] },
+    { "id": "bard", "name": "Bard", "subclasses": [
+      "College of Creation", "College of Eloquence", "College of Glamour", "College of Lore",
+      "College of Spirits", "College of Swords", "College of Valor", "College of Whispers"] },
+    { "id": "cleric", "name": "Cleric", "subclasses": [
+      "Arcana Domain", "Death Domain", "Forge Domain", "Grave Domain", "Knowledge Domain", "Life Domain",
+      "Light Domain", "Nature Domain", "Order Domain", "Peace Domain", "Tempest Domain", "Trickery Domain",
+      "Twilight Domain", "War Domain",
+      { "name": "Ambition Domain", "group": "Amonkhet" }, { "name": "Solidarity Domain", "group": "Amonkhet" },
+      { "name": "Strength Domain", "group": "Amonkhet" }, { "name": "Zeal Domain", "group": "Amonkhet" },
+      { "name": "Fate Domain", "group": "Unearthed Arcana" }] },
+    { "id": "druid", "name": "Druid", "subclasses": [
+      "Circle of Dreams", "Circle of the Land", "Circle of the Moon", "Circle of the Shepherd",
+      "Circle of Spores", "Circle of Stars", "Circle of Wildfire",
+      { "name": "Circle of the Primeval", "group": "Unearthed Arcana" }] },
+    { "id": "fighter", "name": "Fighter", "subclasses": [
+      "Arcane Archer", "Banneret", "Battle Master", "Cavalier", "Champion", "Echo Knight",
+      "Eldritch Knight", "Psi Warrior", "Rune Knight", "Samurai"] },
+    { "id": "monk", "name": "Monk", "subclasses": [
+      "Way of Mercy", "Way of the Ascendant Dragon", "Way of the Astral Self", "Way of the Drunken Master",
+      "Way of the Four Elements", "Way of the Kensei", "Way of the Long Death", "Way of the Open Hand",
+      "Way of Shadow", "Way of the Sun Soul"] },
+    { "id": "paladin", "name": "Paladin", "subclasses": [
+      "Oath of the Ancients", "Oath of Conquest", "Oath of the Crown", "Oath of Devotion", "Oath of Glory",
+      "Oath of Redemption", "Oath of Vengeance", "Oath of the Watchers", "Oathbreaker"] },
+    { "id": "ranger", "name": "Ranger", "subclasses": [
+      "Beast Master Conclave", "Drakewarden", "Fey Wanderer", "Gloom Stalker Conclave",
+      "Horizon Walker Conclave", "Hunter Conclave", "Monster Slayer Conclave", "Swarmkeeper"] },
+    { "id": "rogue", "name": "Rogue", "subclasses": [
+      "Arcane Trickster", "Assassin", "Inquisitive", "Mastermind", "Phantom", "Scout",
+      "Soulknife", "Swashbuckler", "Thief"] },
+    { "id": "sorcerer", "name": "Sorcerer", "subclasses": [
+      "Aberrant Mind", "Clockwork Soul", "Draconic Bloodline", "Divine Soul", "Lunar Sorcery",
+      "Shadow Magic", "Storm Sorcery", "Wild Magic",
+      { "name": "Pyromancy", "group": "Kaladesh" }] },
+    { "id": "warlock", "name": "Warlock", "subclasses": [
+      "Archfey", "Celestial", "Fathomless", "Fiend", "The Genie", "Great Old One", "Hexblade", "Undead", "Undying"] },
+    { "id": "wizard", "name": "Wizard", "subclasses": [
+      "School of Abjuration", "School of Bladesinging", "School of Chronurgy", "School of Conjuration",
+      "School of Divination", "School of Enchantment", "School of Evocation", "School of Graviturgy",
+      "School of Illusion", "School of Necromancy", "Order of Scribes", "School of Transmutation", "School of War Magic"] }
+  ],
+  "excluded": ["blood-hunter"],
+  "quickLinks": {
+    "artificer": ["Infusions"],
+    "fighter": ["Battle Maneuvers"],
+    "monk": ["Disciplines"],
+    "warlock": ["Eldritch Invocations"]
+  }
+}

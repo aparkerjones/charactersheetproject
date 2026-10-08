@@ -29,16 +29,44 @@ export type Skill = keyof typeof SKILLS;
 export const RULESETS = ["2014", "2024"] as const;
 export type Ruleset = (typeof RULESETS)[number];
 
-export const CLASS_IDS = ["barbarian", "fighter", "rogue", "wizard"] as const;
+export const CLASS_IDS = [
+  "artificer",
+  "barbarian",
+  "bard",
+  "cleric",
+  "druid",
+  "fighter",
+  "monk",
+  "paladin",
+  "ranger",
+  "rogue",
+  "sorcerer",
+  "warlock",
+  "wizard",
+] as const;
 export type ClassId = (typeof CLASS_IDS)[number];
+
+export interface ClassProfile {
+  id: ClassId;
+  name: string;
+  hitDie: number;
+  saves: Ability[];
+  primaryAbilities: Ability[];
+  multiclassRequirements: Ability[][];
+  skillCount: number;
+  skillOptions: Record<Ruleset, Skill[]>;
+  subclassLevel: Record<Ruleset, number>;
+  spellcasting?: { ability: Ability; progression: "full" | "halfUp" | "halfDown" | "pact"; minLevel?: number };
+  resources?: ClassResource[];
+}
 
 export interface ClassResource {
   id: string;
   label: string;
   minLevel?: number;
-  max: (level: number, ruleset: Ruleset) => number;
-  // Uses regained on a short rest; Infinity restores everything. Long rests always restore everything.
-  shortRestRecovery: (ruleset: Ruleset) => number;
+  unit?: "uses" | "points";
+  max: (level: number, ruleset: Ruleset, character?: Character) => number;
+  shortRestRecovery: (ruleset: Ruleset, level?: number, character?: Character) => number;
 }
 
 export interface SubclassDefinition {
@@ -64,7 +92,7 @@ export interface ClassDefinition {
   skillOptions: Record<Ruleset, Skill[]>;
   subclassLevel: Record<Ruleset, number>;
   subclasses: Record<Ruleset, SubclassDefinition[]>;
-  spellcasting?: { ability: Ability };
+  spellcasting?: { ability: Ability; progression?: "full" | "halfUp" | "halfDown" | "pact"; minLevel?: number };
   resources: ClassResource[];
   features: ClassFeature[];
 }
@@ -72,10 +100,66 @@ export interface ClassDefinition {
 export interface SpeciesDefinition {
   id: string;
   name: string;
-  speed: number;
+  speed?: number;
+  size?: "Small" | "Medium" | "Large" | "Small or Medium";
+  darkvisionFt?: number;
+  flySpeed?: number;
+  swimSpeed?: number;
+  climbSpeed?: number;
+  naturalArmorBase?: number;
+  naturalArmorDexterity?: boolean;
+  naturalArmorAbility?: Ability;
+  armorBonus?: number;
+  initiativeProficiency?: boolean;
+  resistances?: string[];
+  skillProficiencies?: Skill[];
+  choices?: SpeciesChoiceDefinition[];
+  variants?: SpeciesVariantDefinition[];
   // Fixed ability bonuses; only used by the 2014 rules.
   asi?: Partial<Record<Ability, number>>;
-  traits: string[];
+  traits?: string[];
+  category?: string;
+  mechanicsStatus?: "partial" | "roster-only";
+  sourceUrl?: string;
+}
+
+export interface SpeciesVariantDefinition {
+  id: string;
+  name: string;
+  asi?: Partial<Record<Ability, number>>;
+  replaceAbilityBonuses?: boolean;
+  speed?: number;
+  darkvisionFt?: number;
+  flySpeed?: number;
+  swimSpeed?: number;
+  climbSpeed?: number;
+  naturalArmorBase?: number;
+  naturalArmorDexterity?: boolean;
+  naturalArmorAbility?: Ability;
+  armorBonus?: number;
+  initiativeProficiency?: boolean;
+  skillProficiencies?: Skill[];
+  choices?: SpeciesChoiceDefinition[];
+  resistances?: string[];
+  hpPerLevel?: number;
+  traits?: string[];
+}
+
+export interface SpeciesChoiceOption {
+  id: string;
+  label: string;
+  description?: string;
+  asi?: Partial<Record<Ability, number>>;
+  skillProficiencies?: Skill[];
+  resistances?: string[];
+  featId?: string;
+}
+
+export interface SpeciesChoiceDefinition {
+  id: string;
+  label: string;
+  options: SpeciesChoiceOption[];
+  selectionCount?: number;
 }
 
 export interface BackgroundDefinition {
@@ -114,6 +198,7 @@ export const CharacterSchema = z
     speciesId: z.string(),
     backgroundId: z.string(),
     feats: z.array(z.string()),
+    classChoices: z.record(z.string(), z.array(z.string())).optional(),
     classes: z
       .array(
         z.object({

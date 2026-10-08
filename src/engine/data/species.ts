@@ -1,13 +1,169 @@
-import type { Ruleset, SpeciesDefinition } from "../types";
+import { SKILLS, type Ability, type Ruleset, type Skill, type SpeciesChoiceDefinition, type SpeciesDefinition } from "../types";
 
 // 2014 species carry fixed ability bonuses; 2024 moved those onto backgrounds.
-// Traits are short paraphrases; verify against your sources.
-export const SPECIES: Record<Ruleset, SpeciesDefinition[]> = {
+// Keep source summaries short; only typed fields consumed by the engine affect play.
+const rosterOnly = (id: string, name: string, category?: string): SpeciesDefinition => ({
+  id,
+  name,
+  ...(category ? { category } : {}),
+  mechanicsStatus: "roster-only",
+});
+
+const supported = (species: SpeciesDefinition, category: string): SpeciesDefinition => ({
+  ...species,
+  category,
+  mechanicsStatus: "partial",
+});
+
+const skillChoiceOptions = (skills: Skill[]) =>
+  skills.map((skill) => ({
+    id: skill,
+    label: skill.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
+    skillProficiencies: [skill],
+  }));
+
+const allSkillOptions = skillChoiceOptions(Object.keys(SKILLS) as Skill[]);
+const abilityChoiceOptions: SpeciesChoiceDefinition = {
+  id: "ability-bonuses",
+  label: "Choose two different abilities for +1",
+  selectionCount: 2,
+  options: (["str", "dex", "con", "int", "wis"] as Ability[]).map((ability) => ({
+    id: ability,
+    label: ability.toUpperCase(),
+    asi: { [ability]: 1 },
+  })),
+};
+
+const legacyCommon = [
+  ["dragonborn", "Dragonborn"],
+  ["dwarf", "Dwarf"],
+  ["elf", "Elf"],
+  ["gnome", "Gnome"],
+  ["half-elf", "Half-Elf"],
+  ["half-orc", "Half-Orc"],
+  ["halfling", "Halfling"],
+  ["human", "Human"],
+  ["tiefling", "Tiefling"],
+] as const;
+
+const legacyExotic = [
+  ["aarakocra", "Aarakocra"],
+  ["aasimar", "Aasimar"],
+  ["changeling", "Changeling"],
+  ["deep-gnome", "Deep Gnome"],
+  ["duergar", "Duergar"],
+  ["eladrin", "Eladrin"],
+  ["fairy", "Fairy"],
+  ["firbolg", "Firbolg"],
+  ["genasi-air", "Genasi (Air)"],
+  ["genasi-earth", "Genasi (Earth)"],
+  ["genasi-fire", "Genasi (Fire)"],
+  ["genasi-water", "Genasi (Water)"],
+  ["githyanki", "Githyanki"],
+  ["githzerai", "Githzerai"],
+  ["goliath", "Goliath"],
+  ["harengon", "Harengon"],
+  ["kenku", "Kenku"],
+  ["locathah", "Locathah"],
+  ["owlin", "Owlin"],
+  ["satyr", "Satyr"],
+  ["sea-elf", "Sea Elf"],
+  ["shadar-kai", "Shadar-Kai"],
+  ["tabaxi", "Tabaxi"],
+  ["tortle", "Tortle"],
+  ["triton", "Triton"],
+  ["verdan", "Verdan"],
+] as const;
+
+const legacyMonstrous = [
+  ["bugbear", "Bugbear"],
+  ["centaur", "Centaur"],
+  ["goblin", "Goblin"],
+  ["grung", "Grung"],
+  ["hobgoblin", "Hobgoblin"],
+  ["kobold", "Kobold"],
+  ["lizardfolk", "Lizardfolk"],
+  ["minotaur", "Minotaur"],
+  ["orc", "Orc"],
+  ["shifter", "Shifter"],
+  ["yuan-ti", "Yuan-Ti"],
+] as const;
+
+const legacySettingAndPlaytest = [
+  ["aetherborn", "Aetherborn"],
+  ["autognome", "Autognome"],
+  ["autognome-ua", "Autognome (UA)"],
+  ["aven", "Aven"],
+  ["custom", "Custom Lineage"],
+  ["dhampir", "Dhampir"],
+  ["elf-astral", "Astral Elf"],
+  ["giff", "Giff"],
+  ["giff-ua", "Giff (UA)"],
+  ["glitchling-ua", "Glitchling (UA)"],
+  ["hadozee", "Hadozee"],
+  ["hadozee-ua", "Hadozee (UA)"],
+  ["kender", "Kender"],
+  ["kender-ua", "Kender (UA)"],
+  ["kender-ua-revised", "Kender (Revised UA)"],
+  ["kalashtar", "Kalashtar"],
+  ["khenra", "Khenra"],
+  ["kor", "Kor"],
+  ["leonin", "Leonin"],
+  ["loxodon", "Loxodon"],
+  ["merfolk", "Merfolk"],
+  ["naga", "Naga"],
+  ["owlfolk-ua", "Owlfolk (UA)"],
+  ["plasmoid", "Plasmoid"],
+  ["plasmoid-ua", "Plasmoid (UA)"],
+  ["rabbitfolk-ua", "Rabbitfolk (UA)"],
+  ["hexblood", "Hexblood"],
+  ["reborn", "Reborn"],
+  ["revenant-ua", "Revenant (UA)"],
+  ["simic-hybrid", "Simic Hybrid"],
+  ["siren", "Siren"],
+  ["thri-kreen", "Thri-kreen"],
+  ["thri-kreen-ua", "Thri-kreen (UA)"],
+  ["vampire", "Vampire"],
+  ["vedalken", "Vedalken"],
+  ["viashino-ua", "Viashino (UA)"],
+  ["warforged", "Warforged"],
+] as const;
+
+const revisedRoster = [
+  ["aasimar", "Aasimar"],
+  ["dragonborn", "Dragonborn"],
+  ["dwarf", "Dwarf"],
+  ["elf", "Elf"],
+  ["gnome", "Gnome"],
+  ["goliath", "Goliath"],
+  ["halfling", "Halfling"],
+  ["human", "Human"],
+  ["orc", "Orc"],
+  ["tiefling", "Tiefling"],
+  ["changeling", "Changeling"],
+  ["kalashtar", "Kalashtar"],
+  ["khoravar", "Khoravar"],
+  ["shifter", "Shifter"],
+  ["warforged", "Warforged"],
+  ["boggart", "Boggart"],
+  ["faerie", "Faerie"],
+  ["flamekin", "Flamekin"],
+  ["lorwyn-changeling", "Lorwyn Changeling"],
+  ["rimekin", "Rimekin"],
+  ["dhampir", "Dhampir"],
+  ["hexblood", "Hexblood"],
+  ["lupin", "Lupin"],
+  ["reborn", "Reborn"],
+  ["duskling", "Duskling"],
+] as const;
+
+const knownSpecies: Record<Ruleset, SpeciesDefinition[]> = {
   "2014": [
     {
       id: "human",
       name: "Human",
       speed: 30,
+      size: "Medium",
       asi: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 },
       traits: ["+1 to every ability score", "One extra language"],
     },
@@ -15,50 +171,438 @@ export const SPECIES: Record<Ruleset, SpeciesDefinition[]> = {
       id: "elf",
       name: "Elf",
       speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      skillProficiencies: ["perception"],
       asi: { dex: 2 },
-      traits: ["Darkvision 60 ft", "Resistant to being charmed and immune to magical sleep", "Trance instead of sleep"],
+      traits: ["Advantage against charm; immune to magical sleep", "Trance instead of sleep"],
+      variants: [
+        { id: "dark", name: "Dark Elf (Drow)", asi: { cha: 1 }, darkvisionFt: 120, traits: ["Sunlight Sensitivity", "Drow Magic", "Drow weapon training"] },
+        { id: "high", name: "High Elf", asi: { int: 1 }, traits: ["Choose one Wizard cantrip", "Elf weapon training"] },
+        { id: "wood", name: "Wood Elf", asi: { wis: 1 }, speed: 35, traits: ["Elf weapon training", "Mask of the Wild"] },
+      ],
     },
     {
       id: "dwarf",
       name: "Dwarf",
       speed: 25,
+      size: "Medium",
+      darkvisionFt: 60,
+      resistances: ["poison"],
       asi: { con: 2 },
-      traits: ["Darkvision 60 ft", "Advantage on saves against poison, resistance to poison damage"],
+      traits: ["Advantage on saves against poison", "Dwarven resilience and stonecunning"],
+      variants: [
+        { id: "hill", name: "Hill Dwarf", asi: { wis: 1 }, hpPerLevel: 1, traits: ["Dwarven Toughness: +1 maximum HP per character level"] },
+        { id: "mountain", name: "Mountain Dwarf", asi: { str: 2 }, traits: ["Light and medium armor training"] },
+      ],
     },
     {
       id: "halfling",
       name: "Halfling",
       speed: 25,
+      size: "Small",
       asi: { dex: 2 },
       traits: ["Reroll natural 1s on d20 tests", "Advantage on saves against fear", "Slip past larger creatures"],
     },
+    {
+      id: "aarakocra",
+      name: "Aarakocra",
+      speed: 25,
+      flySpeed: 50,
+      size: "Medium",
+      asi: { dex: 2, wis: 1 },
+      traits: ["Flight: 50 ft (requires not wearing medium or heavy armor)", "Talons", "Wind Caller"],
+    },
+    { id: "genasi-air", name: "Genasi (Air)", speed: 30, size: "Medium", asi: { con: 2, dex: 1 }, traits: ["Unending Breath", "Lightning resistance", "Levitate and air-themed magic"] },
+    { id: "genasi-earth", name: "Genasi (Earth)", speed: 30, size: "Medium", asi: { con: 2, str: 1 }, traits: ["Earth Walk across nonmagical difficult terrain", "Pass without Trace magic"] },
+    { id: "genasi-fire", name: "Genasi (Fire)", speed: 30, size: "Medium", darkvisionFt: 60, resistances: ["fire"], asi: { con: 2, int: 1 }, traits: ["Fire resistance", "Produce Flame and fire-themed magic"] },
+    { id: "genasi-water", name: "Genasi (Water)", speed: 30, swimSpeed: 30, size: "Medium", resistances: ["acid"], asi: { con: 2, wis: 1 }, traits: ["Amphibious", "Acid resistance", "Water-themed magic"] },
+    { id: "githyanki", name: "Githyanki", speed: 30, size: "Medium", resistances: ["psychic"], asi: { str: 2, int: 1 }, traits: ["Astral Knowledge: gain a skill proficiency after a long rest", "Psionic magic", "Psychic resistance"] },
+    { id: "githzerai", name: "Githzerai", speed: 30, size: "Medium", resistances: ["psychic"], asi: { int: 1, wis: 2 }, traits: ["Githzerai Psionics", "Psychic resistance"] },
+    { id: "goliath", name: "Goliath", speed: 30, size: "Medium", asi: { str: 2, con: 1 }, skillProficiencies: ["athletics"], traits: ["Little Giant: Athletics proficiency and increased carrying capacity", "Mountain Born: cold resistance and high-altitude adaptation"] },
+    { id: "harengon", name: "Harengon", speed: 30, size: "Small or Medium", skillProficiencies: ["perception"], initiativeProficiency: true, traits: ["Hare-Trigger: add proficiency to initiative", "Lucky Footwork: add a d4 to a failed Dexterity save", "Rabbit Hop: bonus-action leap a proficiency-based number of times per long rest"] },
+    { id: "kenku", name: "Kenku", speed: 30, size: "Small or Medium", asi: { dex: 2, wis: 1 }, traits: ["Expert Duplication: advantage copying writing or craftwork", "Kenku Recall: reroll a failed skill check a proficiency-based number of times per long rest"] },
+    { id: "locathah", name: "Locathah", speed: 30, swimSpeed: 30, size: "Medium", naturalArmorBase: 12, naturalArmorDexterity: true, asi: { str: 2, dex: 1 }, traits: ["Limited Amphibiousness: must submerge every 4 hours", "Natural armor", "Leviathan Will: advantage against frightened and paralyzed", "Choose two skill proficiencies"] },
+    { id: "owlin", name: "Owlin", speed: 30, flySpeed: 30, size: "Small or Medium", darkvisionFt: 120, skillProficiencies: ["stealth"], traits: ["Flight unavailable while wearing medium or heavy armor", "Silent Feathers: Stealth proficiency"] },
+    { id: "satyr", name: "Satyr", speed: 35, size: "Medium", asi: { dex: 1, cha: 2 }, skillProficiencies: ["performance", "persuasion"], traits: ["Fey creature type", "Advantage on saves against spells and other magical effects", "Mirthful Leaps", "Ram and Reveler proficiencies"] },
+    { id: "sea-elf", name: "Sea Elf", speed: 30, swimSpeed: 30, size: "Medium", darkvisionFt: 60, asi: { con: 1, dex: 2 }, traits: ["Breathe air and water", "Child of the Sea", "Fey Ancestry and Trance", "Friend of the Sea"] },
+    { id: "shadar-kai", name: "Shadar-Kai", speed: 30, size: "Medium", darkvisionFt: 60, resistances: ["necrotic"], asi: { dex: 2, con: 1 }, traits: ["Fey Ancestry", "Trance", "Blessing of the Raven Queen: teleport with proficiency-based uses and gain damage resistance"] },
+    { id: "tabaxi", name: "Tabaxi", speed: 30, climbSpeed: 30, size: "Small or Medium", darkvisionFt: 60, skillProficiencies: ["perception", "stealth"], asi: { dex: 2, cha: 1 }, traits: ["Cat's Claws", "Feline Agility: double speed until next turn after a rest", "Cat's Talent"] },
+    { id: "tortle", name: "Tortle", speed: 30, size: "Small or Medium", naturalArmorBase: 17, asi: { str: 2, wis: 1 }, traits: ["Natural armor AC 17", "Claws", "Hold Breath", "Shell Defense", "Survival proficiency"] },
+    { id: "triton", name: "Triton", speed: 30, swimSpeed: 30, size: "Medium", darkvisionFt: 60, resistances: ["cold"], asi: { str: 1, con: 1, cha: 1 }, traits: ["Amphibious", "Cold resistance", "Control Air and Water", "Emissary of the Sea", "Guardians of the Depths"] },
+    { id: "verdan", name: "Verdan", speed: 30, size: "Small", asi: { cha: 2, con: 1 }, traits: ["Black Blood Healing", "Limited telepathy", "Advantage on Wisdom and Charisma saves", "Persuasion proficiency", "Grows to Medium at level 5"] },
+    { id: "bugbear", name: "Bugbear", speed: 30, size: "Medium", darkvisionFt: 60, asi: { str: 2, dex: 1 }, traits: ["Long-Limbed: 5 ft extra reach on your turn", "Powerful Build", "Sneaky: Stealth proficiency", "Surprise Attack"] },
+    { id: "centaur", name: "Centaur", speed: 40, size: "Medium", asi: { str: 2, wis: 1 }, traits: ["Fey creature type", "Charge: bonus-action melee attack after charging", "Equine Build", "Survival proficiency"] },
+    { id: "goblin", name: "Goblin", speed: 30, size: "Small", darkvisionFt: 60, asi: { dex: 2, con: 1 }, traits: ["Fury of the Small", "Nimble Escape: bonus-action Disengage or Hide"] },
+    { id: "grung", name: "Grung", speed: 25, climbSpeed: 25, size: "Small", asi: { dex: 2, con: 1 }, traits: ["Amphibious", "Poison immunity and poisonous skin", "Standing Leap", "Water Dependency"] },
+    { id: "hobgoblin", name: "Hobgoblin", speed: 30, size: "Medium", darkvisionFt: 60, asi: { con: 2, int: 1 }, traits: ["Saving Face: bonus to a missed attack, failed check, or save based on nearby allies", "Fey Ancestry", "Martial Training"] },
+    { id: "kobold", name: "Kobold", speed: 30, size: "Small", darkvisionFt: 60, asi: { dex: 2 }, traits: ["Pack Tactics", "Sunlight Sensitivity", "Draconic Cry"] },
+    { id: "lizardfolk", name: "Lizardfolk", speed: 30, swimSpeed: 30, size: "Medium", asi: { con: 2, wis: 1 }, traits: ["Bite", "Hold Breath", "Cunning Artisan", "Hungry Jaws", "Natural Armor", "Hunter's Lore"] },
+    { id: "minotaur", name: "Minotaur", speed: 30, size: "Medium", asi: { str: 2, con: 1 }, traits: ["Horns", "Goring Rush", "Hammering Horns", "Labyrinthine Recall"] },
+    { id: "orc", name: "Orc", speed: 30, size: "Medium", darkvisionFt: 60, asi: { str: 2, con: 1 }, traits: ["Adrenaline Rush: bonus-action Dash and temporary hit points, proficiency-based uses", "Powerful Build", "Relentless Endurance"] },
+    {
+      id: "shifter",
+      name: "Shifter",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      asi: { dex: 2 },
+      traits: ["Bestial Instincts: choose one skill proficiency", "Shifting: temporary hit points and lineage benefit"],
+      variants: [
+        { id: "beasthide", name: "Beasthide", asi: { con: 1 }, traits: ["While shifted, gain additional temporary hit points and +1 AC"] },
+        { id: "longtooth", name: "Longtooth", asi: { str: 1 }, traits: ["While shifted, make a bonus-action bite attack"] },
+        { id: "swiftstride", name: "Swiftstride", asi: { dex: 1 }, traits: ["While shifted, increase speed and move away from an adjacent enemy as a reaction"] },
+        { id: "wildhunt", name: "Wildhunt", asi: { wis: 1 }, traits: ["While shifted, gain heightened senses and nearby creatures cannot gain advantage against you"] },
+      ],
+    },
+    { id: "yuan-ti", name: "Yuan-Ti", speed: 30, size: "Small or Medium", darkvisionFt: 60, resistances: ["poison"], asi: { cha: 2, int: 1 }, traits: ["Magic Resistance", "Poison resilience and resistance", "Serpentine Spellcasting"] },
+    {
+      id: "aasimar",
+      name: "Aasimar",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      resistances: ["necrotic", "radiant"],
+      asi: { cha: 2 },
+      traits: ["Healing Hands", "Light Bearer", "Celestial Revelation (choose a lineage at level 3)"],
+      variants: [
+        { id: "protector", name: "Protector", asi: { wis: 1 }, traits: ["Radiant Soul: temporary flight and extra radiant damage"] },
+        { id: "scourge", name: "Scourge", asi: { con: 1 }, traits: ["Radiant Consumption: damaging aura"] },
+        { id: "fallen", name: "Fallen", asi: { str: 1 }, traits: ["Necrotic Shroud: frighten nearby creatures and deal extra damage"] },
+      ],
+    },
+    {
+      id: "changeling",
+      name: "Changeling",
+      speed: 30,
+      size: "Medium",
+      asi: { cha: 2 },
+      traits: ["Shapechanger: alter appearance and voice", "Changeling Instincts: choose two skill proficiencies", "Choose one other ability for +1"],
+      choices: [
+        {
+          id: "ability-bonus",
+          label: "Choose one ability for +1",
+          options: (["str", "dex", "con", "int", "wis"] as Ability[]).map((ability) => ({
+            id: ability,
+            label: ability.toUpperCase(),
+            asi: { [ability]: 1 },
+          })),
+        },
+        { id: "skill-proficiencies", label: "Choose two skill proficiencies", selectionCount: 2, options: allSkillOptions },
+      ],
+    },
+    {
+      id: "deep-gnome",
+      name: "Deep Gnome",
+      speed: 25,
+      size: "Small",
+      darkvisionFt: 120,
+      asi: { int: 2, dex: 1 },
+      traits: ["Gnome Cunning", "Gift of the Svirfneblin", "Svirfneblin Camouflage"],
+    },
+    {
+      id: "duergar",
+      name: "Duergar",
+      speed: 25,
+      size: "Medium",
+      darkvisionFt: 120,
+      resistances: ["poison"],
+      asi: { con: 2, str: 1 },
+      traits: ["Dwarven Resilience", "Duergar Magic: Enlarge and Invisibility", "Psionic Fortitude"],
+    },
+    {
+      id: "eladrin",
+      name: "Eladrin",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      asi: { dex: 2, cha: 1 },
+      traits: ["Fey Ancestry", "Keen Senses", "Trance", "Fey Step (season affects its rider)"],
+      variants: [
+        { id: "autumn", name: "Autumn", traits: ["Fey Step can charm nearby creatures"] },
+        { id: "winter", name: "Winter", traits: ["Fey Step can frighten a nearby creature"] },
+        { id: "spring", name: "Spring", traits: ["Fey Step can teleport a willing creature instead"] },
+        { id: "summer", name: "Summer", traits: ["Fey Step deals fire damage to nearby creatures"] },
+      ],
+    },
+    {
+      id: "fairy",
+      name: "Fairy",
+      speed: 30,
+      flySpeed: 30,
+      size: "Small",
+      traits: ["Fairy Magic: Druidcraft, Faerie Fire, and Enlarge/Reduce", "Flight unavailable while wearing medium or heavy armor", "Ability increases are flexible"],
+    },
+    {
+      id: "firbolg",
+      name: "Firbolg",
+      speed: 30,
+      size: "Medium",
+      asi: { wis: 2, str: 1 },
+      traits: ["Firbolg Magic", "Hidden Step", "Powerful Build", "Speech of Beast and Leaf"],
+    },
+    {
+      id: "dragonborn",
+      name: "Dragonborn",
+      speed: 30,
+      size: "Medium",
+      asi: { str: 2, cha: 1 },
+      traits: ["Choose draconic ancestry for breath weapon and damage resistance"],
+    },
+    {
+      id: "gnome",
+      name: "Gnome",
+      speed: 25,
+      size: "Small",
+      darkvisionFt: 60,
+      asi: { int: 2 },
+      traits: ["Advantage on Intelligence, Wisdom, and Charisma saves against magic"],
+      variants: [
+        { id: "forest", name: "Forest Gnome", asi: { dex: 1 }, traits: ["Natural Illusionist", "Speak with Small Beasts"] },
+        { id: "rock", name: "Rock Gnome", asi: { con: 1 }, traits: ["Artificer's Lore", "Tinker"] },
+      ],
+    },
+    {
+      id: "half-elf",
+      name: "Half-Elf",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      asi: { cha: 2 },
+      traits: ["Choose two other abilities for +1 each", "Choose two skill proficiencies", "Advantage against charm"],
+      choices: [
+        abilityChoiceOptions,
+        { id: "skill-proficiencies", label: "Choose two skill proficiencies", selectionCount: 2, options: allSkillOptions },
+      ],
+    },
+    {
+      id: "half-orc",
+      name: "Half-Orc",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      skillProficiencies: ["intimidation"],
+      asi: { str: 2, con: 1 },
+      traits: ["Once per long rest, drop to 1 HP instead of 0", "Add a weapon die on a critical hit"],
+    },
+    {
+      id: "tiefling",
+      name: "Tiefling",
+      speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      resistances: ["fire"],
+      asi: { cha: 2, int: 1 },
+      traits: ["Innate Infernal Legacy spells"],
+      variants: [
+        { id: "asmodeus", name: "Bloodline of Asmodeus", traits: ["Infernal Legacy: Thaumaturgy; Hellish Rebuke at level 3; Darkness at level 5"] },
+        { id: "feral", name: "Feral Tiefling", asi: { dex: 2, int: 1 }, replaceAbilityBonuses: true, traits: ["Use Dexterity +2 and Intelligence +1 instead of the base ability increases"] },
+        { id: "devils-tongue", name: "Devil's Tongue", traits: ["Vicious Mockery; Charm Person at level 3; Enthrall at level 5"] },
+        { id: "hellfire", name: "Hellfire", traits: ["Infernal Legacy's level 3 spell is Burning Hands"] },
+        { id: "winged", name: "Winged", traits: ["Fly speed equal to walking speed"] },
+        { id: "levistus", name: "Bloodline of Levistus", traits: ["Ray of Frost; Armor of Agathys at level 3; Darkness at level 5"] },
+      ],
+    },
+    { id: "aetherborn", name: "Aetherborn", speed: 30, size: "Medium", darkvisionFt: 60, resistances: ["necrotic"], asi: { cha: 2 }, skillProficiencies: ["intimidation"], traits: ["Born of Aether", "Choose two other abilities for +1 each", "Necrotic resistance", "Two additional languages"] },
+    { id: "autognome", name: "Autognome", speed: 30, size: "Small", resistances: ["poison"], naturalArmorBase: 13, naturalArmorDexterity: true, traits: ["Construct; Armored Casing", "Built for Success: add a d4 to a failed check, attack, or save a proficiency-based number of times per long rest", "Healing Machine", "Mechanical Nature", "Choose one skill and one tool proficiency"] },
+    { id: "autognome-ua", name: "Autognome (UA)", speed: 30, size: "Small", resistances: ["poison"], naturalArmorBase: 13, naturalArmorDexterity: true, traits: ["Construct; Armored Casing", "Built for Success", "Mechanical Nature", "Spare the Dying", "Choose one skill and one tool proficiency (playtest)"] },
+    { id: "aven", name: "Aven", speed: 25, flySpeed: 30, size: "Medium", asi: { dex: 2 }, skillProficiencies: ["perception"], traits: ["Choose Wisdom +1 or Charisma +1", "Flight unavailable in medium or heavy armor", "Keen vision"] },
+    { id: "custom", name: "Custom Lineage", size: "Small or Medium", traits: ["Choose +2 to one ability", "Choose one feat", "Choose either 60-ft darkvision or one skill proficiency"] },
+    { id: "dhampir", name: "Dhampir", speed: 35, climbSpeed: 35, size: "Small or Medium", darkvisionFt: 60, traits: ["Ancestral Legacy: retain two skill proficiencies or a climb/swim speed", "Deathless Nature", "Spider Climb", "Vampiric Bite"] },
+    { id: "elf-astral", name: "Astral Elf", speed: 30, size: "Medium", darkvisionFt: 60, skillProficiencies: ["perception"], traits: ["Astral Fire: choose a cantrip", "Fey Ancestry and Trance", "Astral Trance grants one skill and weapon/tool proficiency", "Starlight Step: teleport with proficiency-based uses per long rest"] },
+    { id: "giff", name: "Giff", speed: 30, swimSpeed: 30, size: "Medium", traits: ["Astral Spark", "Firearms Mastery", "Hippo Build: advantage on Strength saves"] },
+    { id: "giff-ua", name: "Giff (UA)", speed: 30, swimSpeed: 30, size: "Medium", traits: ["Damage Dealer", "Hippo Build: advantage on Strength saves (playtest)"] },
+    { id: "glitchling-ua", name: "Glitchling (UA)", speed: 30, size: "Medium", naturalArmorBase: 13, naturalArmorDexterity: true, traits: ["Construct; Armored Plating", "Balance Chaos", "Living Construct and Spare the Dying", "Ordered Mind", "Vestigial Wings (playtest)"] },
+    { id: "hadozee", name: "Hadozee", speed: 30, climbSpeed: 30, size: "Small or Medium", traits: ["Dexterous Feet: interact using feet", "Glide", "Hadozee Dodge: reduce damage with proficiency-based uses per long rest"] },
+    { id: "hadozee-ua", name: "Hadozee (UA)", speed: 30, climbSpeed: 30, size: "Small or Medium", traits: ["Dexterous Feet: use an object as a bonus action", "Glide (playtest)"] },
+    { id: "hexblood", name: "Hexblood", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Fey lineage; retain eligible former ancestry traits", "Eerie Token: telepathic message and remote viewing", "Hex Magic"] },
+    { id: "kender", name: "Kender", speed: 30, size: "Small", asi: { dex: 2, wis: 1 }, traits: ["Fearless against fear", "Kender Aptitude: choose two skill proficiencies", "Taunt: provoke a target with a player-rolled save"] },
+    { id: "kender-ua", name: "Kender (UA)", speed: 30, size: "Small", traits: ["Brave", "Kender Ace: choose a skill and one of several adventure tricks", "Taunt (playtest)"] },
+    { id: "kender-ua-revised", name: "Kender (Revised UA)", speed: 30, size: "Small", traits: ["Fearless against fear", "Kender Curiosity: choose a skill proficiency", "Taunt (playtest)"] },
+    { id: "khenra", name: "Khenra", speed: 35, size: "Medium", asi: { dex: 2, str: 1 }, traits: ["Khenra Weapon Training: khopesh, spear, and javelin", "Khenra Twins"] },
+    { id: "kor", name: "Kor", speed: 30, climbSpeed: 30, size: "Medium", asi: { dex: 2, wis: 1 }, traits: ["Kor Climbing: enhanced climbing checks", "Lucky", "Brave"] },
+    { id: "leonin", name: "Leonin", speed: 35, size: "Medium", darkvisionFt: 60, asi: { con: 2, str: 1 }, traits: ["Claws", "Instincts: choose one skill proficiency", "Daunting Roar: frighten nearby creatures with proficiency-based uses per long rest"] },
+    { id: "loxodon", name: "Loxodon", speed: 30, size: "Medium", naturalArmorBase: 12, naturalArmorAbility: "con", asi: { con: 2, wis: 1 }, traits: ["Powerful Build", "Loxodon Serenity", "Natural armor 12 + Constitution modifier", "Trunk", "Keen Smell"] },
+    { id: "merfolk", name: "Merfolk", speed: 30, swimSpeed: 30, size: "Medium", traits: ["Amphibious: breathe air and water", "Choose the applicable merfolk subrace and its ability/cantrip benefit"] },
+    { id: "naga", name: "Naga", speed: 30, size: "Medium", asi: { con: 2, int: 1 }, traits: ["Speed Burst", "Natural fanged and constricting attacks", "Poison immunity", "Poison Affinity: poisoner kit proficiency"] },
+    { id: "owlfolk-ua", name: "Owlfolk (UA)", speed: 30, flySpeed: 30, size: "Small or Medium", darkvisionFt: 90, skillProficiencies: ["stealth"], traits: ["Magic Sight", "Nimble Flight: no medium or heavy armor", "Silent Feathers"] },
+    { id: "plasmoid", name: "Plasmoid", speed: 30, size: "Small or Medium", darkvisionFt: 60, resistances: ["acid", "poison"], traits: ["Ooze creature type", "Amorphous", "Hold Breath", "Natural Resilience", "Shape Self"] },
+    { id: "plasmoid-ua", name: "Plasmoid (UA)", speed: 30, size: "Small or Medium", darkvisionFt: 60, resistances: ["acid", "poison"], traits: ["Ooze creature type", "Amorphous", "Hold Breath", "Natural Resilience", "Shape Self (playtest)"] },
+    { id: "rabbitfolk-ua", name: "Rabbitfolk (UA)", speed: 30, size: "Small or Medium", skillProficiencies: ["perception"], initiativeProficiency: true, traits: ["Hare-Trigger: add proficiency to initiative", "Leporine Senses", "Lucky Footwork", "Rabbit Hop (playtest)"] },
+    { id: "reborn", name: "Reborn", speed: 30, size: "Small or Medium", resistances: ["poison"], traits: ["Ancestral Legacy", "Advantage on death saves", "No need to eat, drink, breathe, or sleep", "Choose two skills", "Knowledge from a Past Life: add a d6 to failed checks, proficiency-based uses per long rest"] },
+    { id: "revenant-ua", name: "Revenant (UA)", speed: 30, size: "Medium", asi: { con: 1 }, traits: ["Relentless Nature: return after death while pursuing a DM-assigned goal (playtest)"] },
+    { id: "simic-hybrid", name: "Simic Hybrid", speed: 30, size: "Medium", darkvisionFt: 60, asi: { con: 2 }, traits: ["Choose +1 to another ability", "Animal Enhancements at levels 1 and 5; choose options at each threshold"] },
+    { id: "siren", name: "Siren", speed: 25, flySpeed: 30, size: "Medium", asi: { cha: 2 }, traits: ["Flight unavailable in medium or heavy armor", "Siren Song"] },
+    { id: "thri-kreen", name: "Thri-kreen", speed: 30, size: "Small or Medium", darkvisionFt: 60, naturalArmorBase: 13, naturalArmorDexterity: true, traits: ["Chameleon Carapace: AC 13 + Dexterity while unarmored", "Secondary Arms", "Sleepless", "Thri-kreen Telepathy"] },
+    { id: "thri-kreen-ua", name: "Thri-kreen (UA)", speed: 30, size: "Small or Medium", darkvisionFt: 60, naturalArmorBase: 13, naturalArmorDexterity: true, traits: ["Chameleon Carapace", "Secondary Arms", "Sleepless Revitalization", "Thri-kreen Telepathy (playtest)"] },
+    { id: "vampire", name: "Vampire", speed: 30, size: "Medium", darkvisionFt: 60, resistances: ["necrotic"], asi: { cha: 2, int: 1 }, traits: ["Vampiric Resistance", "Bloodthirst: drain blood from a willing or incapacitated creature"] },
+    { id: "vedalken", name: "Vedalken", speed: 30, size: "Medium", asi: { int: 2, wis: 1 }, traits: ["Vedalken Dispassion: advantage on Intelligence, Wisdom, and Charisma saves", "Tireless Precision", "Partially Amphibious"] },
+    { id: "viashino-ua", name: "Viashino (UA)", speed: 30, size: "Medium", asi: { dex: 2, str: 1 }, traits: ["Bite", "Lashing Tail", "Wiry Frame: choose Acrobatics or Stealth proficiency (playtest)"] },
+    { id: "warforged", name: "Warforged", speed: 30, size: "Medium", resistances: ["poison"], armorBonus: 1, asi: { con: 2 }, traits: ["Constructed Resilience", "Sentry's Rest", "Integrated Protection: +1 AC", "Specialized Design: choose one skill and one tool proficiency"] },
+    { id: "kalashtar", name: "Kalashtar", speed: 30, size: "Medium", resistances: ["psychic"], asi: { wis: 2, cha: 1 }, traits: ["Dual Mind: advantage on Wisdom saves", "Mental Discipline: psychic resistance", "Mind Link telepathy", "Severed from Dreams"] },
   ],
   "2024": [
     {
       id: "human",
       name: "Human",
       speed: 30,
+      size: "Medium",
       traits: ["Resourceful: gain Heroic Inspiration after a long rest", "Skillful: one extra skill proficiency", "Versatile: one extra Origin feat"],
+      choices: [
+        { id: "skill-proficiency", label: "Choose an additional skill proficiency", options: allSkillOptions },
+        {
+          id: "origin-feat",
+          label: "Choose an additional Origin feat",
+          options: [
+            { id: "alert", label: "Alert", featId: "alert" },
+            { id: "lucky", label: "Lucky", featId: "lucky" },
+            { id: "savageAttacker", label: "Savage Attacker", featId: "savageAttacker" },
+            { id: "tough", label: "Tough", featId: "tough" },
+            { id: "magicInitiateCleric", label: "Magic Initiate (Cleric)", featId: "magicInitiateCleric" },
+            { id: "magicInitiateWizard", label: "Magic Initiate (Wizard)", featId: "magicInitiateWizard" },
+          ],
+        },
+      ],
     },
     {
       id: "elf",
       name: "Elf",
       speed: 30,
+      size: "Medium",
+      darkvisionFt: 60,
+      skillProficiencies: ["perception"],
       traits: ["Darkvision 60 ft", "Advantage against being charmed", "Trance instead of sleep", "Lineage grants spells"],
+      variants: [
+        { id: "drow", name: "Drow", darkvisionFt: 120, traits: ["Dancing Lights; Faerie Fire at level 3; Darkness at level 5"] },
+        { id: "high", name: "High Elf", traits: ["Prestidigitation; Detect Magic at level 3; Misty Step at level 5"] },
+        { id: "wood", name: "Wood Elf", speed: 35, traits: ["Druidcraft; Longstrider at level 3; Pass without Trace at level 5"] },
+        { id: "lorwyn", name: "Lorwyn Elf", traits: ["Thorn Whip; Command at level 3; Silence at level 5"] },
+        { id: "shadowmoor", name: "Shadowmoor Elf", darkvisionFt: 120, traits: ["Starry Wisp; Cure Wounds at level 3; Blindness/Deafness at level 5"] },
+      ],
     },
     {
       id: "dwarf",
       name: "Dwarf",
       speed: 30,
+      size: "Medium",
+      darkvisionFt: 120,
+      resistances: ["poison"],
       traits: ["Darkvision 120 ft", "Resistance to poison damage", "Stonecunning"],
     },
     {
       id: "halfling",
       name: "Halfling",
       speed: 30,
+      size: "Small",
       traits: ["Reroll natural 1s on d20 tests", "Brave against fear", "Move through larger creatures' spaces"],
     },
+    { id: "aasimar", name: "Aasimar", speed: 30, size: "Medium", darkvisionFt: 60, resistances: ["necrotic", "radiant"], traits: ["Healing Hands", "Light Bearer", "Choose a Celestial Revelation at level 3"] },
+    { id: "dragonborn", name: "Dragonborn", speed: 30, size: "Medium", darkvisionFt: 60, traits: ["Choose draconic ancestry; breath weapon and resistance use that choice", "Breath weapon scales at character levels 5, 11, and 17", "Gain temporary flight at level 5"], choices: [
+      { id: "draconic-ancestry", label: "Choose a Draconic Ancestry", options: [
+        { id: "black", label: "Black (Acid)", resistances: ["acid"] },
+        { id: "blue", label: "Blue (Lightning)", resistances: ["lightning"] },
+        { id: "brass", label: "Brass (Fire)", resistances: ["fire"] },
+        { id: "bronze", label: "Bronze (Lightning)", resistances: ["lightning"] },
+        { id: "copper", label: "Copper (Acid)", resistances: ["acid"] },
+        { id: "gold", label: "Gold (Fire)", resistances: ["fire"] },
+        { id: "green", label: "Green (Poison)", resistances: ["poison"] },
+        { id: "red", label: "Red (Fire)", resistances: ["fire"] },
+        { id: "silver", label: "Silver (Cold)", resistances: ["cold"] },
+        { id: "white", label: "White (Cold)", resistances: ["cold"] },
+      ] },
+    ] },
+    { id: "gnome", name: "Gnome", speed: 30, size: "Small", darkvisionFt: 60, traits: ["Advantage on Intelligence, Wisdom, and Charisma saves"], variants: [
+      { id: "forest", name: "Forest Gnome", traits: ["Minor Illusion; Speak with Animals"] },
+      { id: "rock", name: "Rock Gnome", traits: ["Mending and Prestidigitation; create clockwork devices"] },
+    ] },
+    { id: "goliath", name: "Goliath", speed: 35, size: "Medium", traits: ["Choose a Giant Ancestry benefit", "Increase size temporarily at level 5", "Powerful Build"] },
+    { id: "orc", name: "Orc", speed: 30, size: "Medium", darkvisionFt: 120, traits: ["Bonus-action burst of speed with temporary HP", "Once per long rest, drop to 1 HP instead of 0"] },
+    { id: "changeling", name: "Changeling", speed: 30, size: "Small or Medium", traits: ["Fey creature type", "Choose two skill proficiencies", "Shape-shift appearance and voice"], choices: [
+      { id: "skill-proficiencies", label: "Choose two skill proficiencies", selectionCount: 2, options: allSkillOptions },
+    ] },
+    { id: "kalashtar", name: "Kalashtar", speed: 30, size: "Medium", resistances: ["psychic"], traits: ["Advantage on Wisdom and Charisma saves", "Psychic resistance", "Level-scaled telepathy", "Choose a skill proficiency after a long rest"] },
+    { id: "khoravar", name: "Khoravar", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Advantage against being charmed", "Friends cantrip, replaceable after a long rest", "Resist falling unconscious", "Choose a skill or tool proficiency"] },
+    { id: "shifter", name: "Shifter", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Choose one Bestial Instinct skill proficiency", "Shift as a bonus action for 1 minute; gain temporary HP and a chosen bestial benefit"], choices: [
+      { id: "bestial-instinct", label: "Choose a Bestial Instinct skill", options: skillChoiceOptions(["acrobatics", "athletics", "intimidation", "survival"]) },
+    ] },
+    { id: "warforged", name: "Warforged", speed: 30, size: "Small or Medium", resistances: ["poison"], armorBonus: 1, traits: ["Construct Resilience: poison resistance and advantage against the poisoned condition", "Integrated Protection: +1 AC", "Sentry's Rest", "Choose one skill and one tool proficiency", "Ignore exhaustion from dehydration, malnutrition, and suffocation"] },
+    { id: "boggart", name: "Boggart", speed: 30, size: "Small", darkvisionFt: 60, traits: ["Goblinoid", "Fey Ancestry", "Fury of the Small", "Nimble Escape"] },
+    { id: "faerie", name: "Faerie", speed: 30, flySpeed: 30, size: "Small", traits: ["Fairy Magic: Druidcraft, Faerie Fire at level 3, Enlarge/Reduce at level 5", "Flight unavailable in medium or heavy armor"] },
+    { id: "flamekin", name: "Flamekin", speed: 30, size: "Small or Medium", darkvisionFt: 60, resistances: ["fire"], traits: ["Fire resistance", "Produce Flame; Burning Hands at level 3; Flame Blade at level 5"] },
+    { id: "lorwyn-changeling", name: "Lorwyn Changeling", speed: 30, size: "Small or Medium", darkvisionFt: 120, skillProficiencies: ["performance"], traits: ["Shape Self between humanoid and beast forms", "Unpredictable Movement: reaction Dash after rolling initiative without disadvantage"] },
+    { id: "rimekin", name: "Rimekin", speed: 30, size: "Small or Medium", darkvisionFt: 60, resistances: ["cold"], traits: ["Ray of Frost; Ice Knife at level 3; cold-damage Flame Blade at level 5"] },
+    { id: "dhampir", name: "Dhampir", speed: 35, climbSpeed: 35, size: "Small or Medium", darkvisionFt: 60, resistances: ["necrotic"], traits: ["Spider Climb at level 3", "Vampiric Bite can drain or empower the character"] },
+    { id: "hexblood", name: "Hexblood", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Fey creature type", "Eerie Token: message and remote viewing", "Hex Magic: Disguise Self and Hex"] },
+    { id: "lupin", name: "Lupin", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Feral Pounce", "Howl: nearby creatures resist or suffer a temporary penalty"] },
+    { id: "reborn", name: "Reborn", speed: 30, size: "Small or Medium", traits: ["Advantage on death saves", "No sleep; ignore exhaustion from dehydration, malnutrition, or suffocation", "Choose a skill proficiency", "Knowledge from a Past Life: add a d6 to a failed ability check, proficiency-based uses per long rest"] },
+    { id: "duskling", name: "Duskling", speed: 30, size: "Medium", darkvisionFt: 60, traits: ["Enhanced Jump", "Inner Magic: choose a benefit after a long rest; switch benefits a proficiency-based number of times per long rest"] },
+    { id: "tiefling", name: "Tiefling", speed: 30, size: "Small or Medium", darkvisionFt: 60, traits: ["Thaumaturgy; choose a Fiendish Legacy and its spells"], variants: [
+      { id: "abyssal", name: "Abyssal", resistances: ["poison"], traits: ["Poison Spray; Ray of Sickness at level 3; Hold Person at level 5"] },
+      { id: "chthonic", name: "Chthonic", resistances: ["necrotic"], traits: ["Chill Touch; False Life at level 3; Ray of Enfeeblement at level 5"] },
+      { id: "infernal", name: "Infernal", resistances: ["fire"], traits: ["Fire Bolt; Hellish Rebuke at level 3; Darkness at level 5"] },
+    ] },
   ],
 };
 
+const mergeRoster = (ruleset: Ruleset, roster: readonly (readonly [string, string])[], categories?: Record<string, string>) => {
+  const knownById = new Map(knownSpecies[ruleset].map((species) => [species.id, species]));
+  const host = ruleset === "2014" ? "dnd5e.wikidot.com/lineage:" : "dnd2024.wikidot.com/species:";
+  return roster.map(([id, name]) => {
+    const known = knownById.get(id);
+    const species = known
+      ? supported(known, categories?.[id] ?? "Core")
+      : rosterOnly(id, name, categories?.[id]);
+    return { ...species, sourceUrl: `https://${host}${id}` };
+  });
+};
+
+export const SPECIES: Record<Ruleset, SpeciesDefinition[]> = {
+  "2014": mergeRoster("2014", [...legacyCommon, ...legacyExotic, ...legacyMonstrous, ...legacySettingAndPlaytest], {
+    ...Object.fromEntries(legacyCommon.map(([id]) => [id, "Common"])),
+    ...Object.fromEntries(legacyExotic.map(([id]) => [id, "Exotic"])),
+    ...Object.fromEntries(legacyMonstrous.map(([id]) => [id, "Monstrous"])),
+    ...Object.fromEntries(legacySettingAndPlaytest.map(([id]) => [id, id.endsWith("-ua") || id.includes("-ua-") ? "Unearthed Arcana" : "Setting / additional source"])),
+  }),
+  "2024": mergeRoster("2024", revisedRoster),
+};
+
 export const speciesById = (ruleset: Ruleset, id: string) => SPECIES[ruleset].find((s) => s.id === id);
+
+export const speciesVariantById = (ruleset: Ruleset, speciesId: string, variantId?: string | null) =>
+  variantId ? speciesById(ruleset, speciesId)?.variants?.find((variant) => variant.id === variantId) : undefined;
+
+export const speciesForCharacter = <T extends { ruleset: Ruleset; speciesId: string; speciesVariantId?: string | null; creation?: { speciesVariantId?: string | null; speciesChoices?: Record<string, string[]> } }>(character: T) => {
+  const species = speciesById(character.ruleset, character.speciesId);
+  const variant = speciesVariantById(character.ruleset, character.speciesId, character.creation?.speciesVariantId ?? character.speciesVariantId);
+  if (!species) return species;
+  const choices = [...(species.choices ?? []), ...(variant?.choices ?? [])];
+  const selected = choices.flatMap((choice) =>
+    (character.creation?.speciesChoices?.[choice.id] ?? [])
+      .map((id) => choice.options.find((option) => option.id === id))
+      .filter((option) => option !== undefined),
+  );
+  return {
+    ...species,
+    variantName: variant?.name,
+    speed: variant?.speed ?? species.speed,
+    darkvisionFt: variant?.darkvisionFt ?? species.darkvisionFt,
+    flySpeed: variant?.flySpeed ?? species.flySpeed,
+    swimSpeed: variant?.swimSpeed ?? species.swimSpeed,
+    climbSpeed: variant?.climbSpeed ?? species.climbSpeed,
+    naturalArmorBase: variant?.naturalArmorBase ?? species.naturalArmorBase,
+    naturalArmorDexterity: variant?.naturalArmorDexterity ?? species.naturalArmorDexterity,
+    naturalArmorAbility: variant?.naturalArmorAbility ?? species.naturalArmorAbility,
+    armorBonus: variant?.armorBonus ?? species.armorBonus,
+    initiativeProficiency: variant?.initiativeProficiency ?? species.initiativeProficiency,
+    resistances: [...new Set([...(species.resistances ?? []), ...(variant?.resistances ?? []), ...selected.flatMap((option) => option.resistances ?? [])])],
+    skillProficiencies: [...new Set([...(species.skillProficiencies ?? []), ...(variant?.skillProficiencies ?? []), ...selected.flatMap((option) => option.skillProficiencies ?? [])])],
+    asi: [...(variant?.asi ? [variant.asi] : []), ...selected.flatMap((option) => option.asi ? [option.asi] : [])].reduce<Partial<Record<Ability, number>>>(
+      (total, bonuses) => {
+        for (const [ability, bonus] of Object.entries(bonuses) as [Ability, number][]) total[ability] = (total[ability] ?? 0) + bonus;
+        return total;
+      },
+      { ...(variant?.asi ? {} : species.asi) },
+    ),
+    traits: [...(species.traits ?? []), ...(variant?.traits ?? []), ...selected.map((option) => `${choices.find((choice) => choice.options.includes(option))?.label}: ${option.label}`)],
+  };
+};

@@ -1,6 +1,8 @@
 import { CLASSES } from "./data/classes";
 import { featById } from "./data/feats";
-import { speciesById } from "./data/species";
+import { CLASS_PROFILES } from "./data/classProfiles";
+import { passiveClassModifiers, unarmoredArmorClass } from "./passives";
+import { speciesForCharacter, speciesVariantById } from "./data/species";
 import { ABILITIES, SKILLS, type Ability, type Character, type FeatMods, type Skill } from "./types";
 
 export const abilityMod = (score: number) => Math.floor((score - 10) / 2);
@@ -34,51 +36,56 @@ export function featMods(c: Character): Required<FeatMods> {
 // The first class gets maximum hit die at level 1; every other level uses the fixed average.
 export function maxHp(c: Character): number {
   const con = abilityMod(abilityScore(c, "con"));
+  const speciesHpPerLevel = speciesVariantById(c.ruleset, c.speciesId, c.creation?.speciesVariantId)?.hpPerLevel ?? 0;
   let hp = 0;
-  c.classes.forEach((k, ci) => {
-    const { hitDie } = CLASSES[k.classId];
+  let firstImplementedLevel = true;
+  c.classes.forEach((k) => {
+    const hitDie = CLASS_PROFILES[k.classId].hitDie;
     for (let i = 0; i < k.level; i++) {
-      hp += (ci === 0 && i === 0 ? hitDie : Math.floor(hitDie / 2) + 1) + con;
+      hp += (firstImplementedLevel ? hitDie : Math.floor(hitDie / 2) + 1) + con;
+      firstImplementedLevel = false;
     }
   });
-  return Math.max(totalLevel(c), hp + featMods(c).hpPerLevel * totalLevel(c));
+  return Math.max(totalLevel(c), hp + (featMods(c).hpPerLevel + speciesHpPerLevel) * totalLevel(c));
 }
 
 export function skillBonus(c: Character, skill: Skill): number {
   const prof = proficiencyBonus(totalLevel(c));
   const base = abilityMod(abilityScore(c, SKILLS[skill]));
   if (c.expertise.includes(skill)) return base + prof * 2;
-  if (c.skillProficiencies.includes(skill)) return base + prof;
-  return base;
+  if (c.skillProficiencies.includes(skill) || speciesForCharacter(c)?.skillProficiencies?.includes(skill)) return base + prof;
+  return base + passiveClassModifiers(c).abilityCheck;
 }
 
 // Saving throw proficiencies come only from the starting class.
 export function saveBonus(c: Character, ability: Ability): number {
-  const proficient = CLASSES[c.classes[0].classId].saves.includes(ability);
-  return abilityMod(abilityScore(c, ability)) + (proficient ? proficiencyBonus(totalLevel(c)) : 0);
+  const proficient = CLASS_PROFILES[c.classes[0].classId].saves.includes(ability);
+  return abilityMod(abilityScore(c, ability)) + (proficient ? proficiencyBonus(totalLevel(c)) : 0) + passiveClassModifiers(c).savingThrow;
 }
 
 export function initiative(c: Character): number {
   const m = featMods(c);
-  return abilityMod(abilityScore(c, "dex")) + m.initiativeFlat + (m.initiativeProficiency ? proficiencyBonus(totalLevel(c)) : 0);
+  const proficient = m.initiativeProficiency || Boolean(speciesForCharacter(c)?.initiativeProficiency);
+  const joat = classLevel(c, "bard") >= 2 && !proficient ? Math.floor(proficiencyBonus(totalLevel(c)) / 2) : 0;
+  return abilityMod(abilityScore(c, "dex")) + m.initiativeFlat + (proficient ? proficiencyBonus(totalLevel(c)) : joat);
 }
 
 export function speed(c: Character): number {
-  const base = speciesById(c.ruleset, c.speciesId)?.speed ?? 30;
-  return base + (classLevel(c, "barbarian") >= 5 ? 10 : 0);
+  const base = speciesForCharacter(c)?.speed ?? 30;
+  return base + passiveClassModifiers(c).speed;
 }
 
 export function spellSaveDc(c: Character): number | null {
-  const caster = c.classes.map((k) => CLASSES[k.classId].spellcasting).find(Boolean);
+  const caster = c.classes
+    .filter((entry) => entry.level >= (CLASS_PROFILES[entry.classId].spellcasting?.minLevel ?? 1))
+    .map((k) => CLASSES[k.classId]?.spellcasting ?? CLASS_PROFILES[k.classId].spellcasting)
+    .find(Boolean);
   return caster ? 8 + proficiencyBonus(totalLevel(c)) + abilityMod(abilityScore(c, caster.ability)) : null;
 }
 
 // Best unarmored formula available. Equipment will feed armor in later.
 export function armorClass(c: Character): number {
-  const dex = abilityMod(abilityScore(c, "dex"));
-  const options = [10 + dex];
-  if (classLevel(c, "barbarian") > 0) options.push(10 + dex + abilityMod(abilityScore(c, "con")));
-  return Math.max(...options);
+  return Math.max(...unarmoredArmorClass(c));
 }
 
 export const passiveScore = (c: Character, skill: Skill) => 10 + skillBonus(c, skill);

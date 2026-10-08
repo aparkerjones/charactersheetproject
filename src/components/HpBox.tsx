@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { abilityMod, abilityScore, maxHp } from "@/engine/calc";
-import { CLASSES } from "@/engine/data/classes";
 import { DAMAGE_TYPES, hitDicePool, isResistant, resolveDamage, type DamageType } from "@/engine/hp";
 import { useCharacter } from "@/engine/store";
 import type { Character } from "@/engine/types";
@@ -142,7 +141,7 @@ export function HpBox({ c }: { c: Character }) {
                       clear();
                     }}
                   >
-                    d{CLASSES[h.classId].hitDie} ({h.total - h.used} left)
+                    d{h.hitDie} ({h.total - h.used} left)
                   </button>
                 ))}
               </div>

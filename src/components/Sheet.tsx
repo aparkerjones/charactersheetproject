@@ -17,10 +17,22 @@ import {
 } from "@/engine/calc";
 import { BACKGROUNDS } from "@/engine/data/backgrounds";
 import { CLASSES } from "@/engine/data/classes";
+import { CLASS_PROFILES } from "@/engine/data/classProfiles";
+import { className, rosterSubclassName, rosterSubclassNames } from "@/engine/data/roster";
 import { featById } from "@/engine/data/feats";
-import { SPECIES } from "@/engine/data/species";
+import { canUseClassAction, classActions } from "@/engine/actions";
+import {
+  cantripOptionsForStyle,
+  expertiseKey,
+  fightingStyleCantripsKey,
+  fightingStyleKey,
+  fightingStyleOptions,
+} from "@/engine/classChoices";
+import { speciesForCharacter } from "@/engine/data/species";
 import { downloadCharacter, parseCharacter } from "@/engine/file";
 import { activeEffects, canStartRage, rageUses } from "@/engine/rage";
+import { resourcePools } from "@/engine/resources";
+import { spellSlotPools } from "@/engine/spells";
 import { loadActiveCharacter } from "@/engine/storage";
 import { useCharacter } from "@/engine/store";
 import { ABILITIES, SKILLS, type Ability, type Skill } from "@/engine/types";
@@ -28,6 +40,7 @@ import { AbilityDialog } from "./AbilityDialog";
 import { HpBox } from "./HpBox";
 import { LevelUpDialog } from "./LevelUpDialog";
 import { SavedCharacters } from "./SavedCharacters";
+import { RuleActionDialog } from "./RuleActionDialog";
 import { ThemeToggle } from "./ThemeToggle";
 
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
@@ -43,10 +56,12 @@ export function Sheet() {
     setResourceUsed,
     toggleRage,
     rest,
+    activateClassAction,
   } = useCharacter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [levelUpOpen, setLevelUpOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState<ReturnType<typeof classActions>[number] | null>(null);
   const [abilityOpen, setAbilityOpen] = useState<Ability | null>(null);
   const [editSkills, setEditSkills] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -136,10 +151,12 @@ export function Sheet() {
   const dc = spellSaveDc(c);
   const fx = activeEffects(c);
   const barbarian = c.classes.find((k) => k.classId === "barbarian");
-  const species = SPECIES[c.ruleset].find((s) => s.id === c.speciesId);
+  const species = speciesForCharacter(c);
   const background = BACKGROUNDS[c.ruleset].find((b) => b.id === c.backgroundId);
   const rageMax = barbarian ? rageUses(barbarian.level, c.ruleset) : 0;
   const rageUsed = c.resourcesUsed.rage ?? 0;
+  const spellPools = spellSlotPools(c);
+  const classResourcePools = resourcePools(c);
   const hasAdvantage = (ability: string, kind: "checks" | "saves") => (fx.advantage[kind] as string[]).includes(ability);
 
   return (
@@ -227,6 +244,16 @@ export function Sheet() {
 
       {abilityOpen && <AbilityDialog c={c} ability={abilityOpen} onClose={() => setAbilityOpen(null)} />}
       {levelUpOpen && <LevelUpDialog c={c} onClose={() => setLevelUpOpen(false)} />}
+      {actionOpen && (
+        <RuleActionDialog
+          c={c}
+          action={actionOpen}
+          onClose={() => setActionOpen(null)}
+          onResolve={(inputValue, choiceId) => {
+            if (activateClassAction(actionOpen.id, inputValue, choiceId)) setActionOpen(null);
+          }}
+        />
+      )}
       <main className="mx-auto max-w-6xl space-y-5 p-4">
         {error && <p className="text-danger">{error}</p>}
 
@@ -235,13 +262,14 @@ export function Sheet() {
             <div className="flex flex-wrap items-stretch gap-2">
               {c.classes.map((k) => {
                 const def = CLASSES[k.classId];
-                const sub = k.level >= def.subclassLevel[c.ruleset] ? def.subclasses[c.ruleset].find((s) => s.id === k.subclassId) : undefined;
+                const sub = def && k.level >= def.subclassLevel[c.ruleset] ? def.subclasses[c.ruleset].find((s) => s.id === k.subclassId) : undefined;
                 return (
                   <div key={k.classId} className="panel !px-4 !py-2">
                     <div className="font-semibold">
-                      {def.name} <span className="font-normal text-muted">Level {k.level}</span>
+                      {className(k.classId)} <span className="font-normal text-muted">Level {k.level}</span>
                     </div>
                     {sub && <div className="text-sm text-muted">{sub.name}</div>}
+                    {!def && <div className="text-xs text-muted">Mechanics not implemented</div>}
                   </div>
                 );
               })}
@@ -256,7 +284,7 @@ export function Sheet() {
             </div>
           <section aria-label="Abilities" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {ABILITIES.map((a) => {
-              const proficient = CLASSES[c.classes[0].classId].saves.includes(a);
+              const proficient = CLASS_PROFILES[c.classes[0].classId].saves.includes(a);
               return (
                 <button
                   key={a}
@@ -327,6 +355,40 @@ export function Sheet() {
             ))}
         </section>
 
+        <section className="panel">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h2 className="panel-title">{species?.name}{species && "variantName" in species && species.variantName ? ` · ${species.variantName}` : ""} traits</h2>
+                <div className="text-sm text-muted">
+                  {[species?.size, species?.darkvisionFt ? `Darkvision ${species.darkvisionFt} ft` : null]
+                    .concat(species?.flySpeed ? [`Fly ${species.flySpeed} ft`] : [])
+                    .concat(species?.swimSpeed ? [`Swim ${species.swimSpeed} ft`] : [])
+                    .concat(species?.climbSpeed ? [`Climb ${species.climbSpeed} ft`] : [])
+                    .filter(Boolean)
+                    .join(" · ")}
+                  {species?.resistances?.length ? ` · Resistance: ${species.resistances.join(", ")}` : ""}
+                </div>
+              </div>
+              {species?.sourceUrl && (
+                <a href={species.sourceUrl} target="_blank" rel="noreferrer" className="text-sm text-accent underline">
+                  Source page
+                </a>
+              )}
+            </div>
+            {species?.traits?.length ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {species.traits.map((trait) => <li key={trait}>{trait}</li>)}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-muted">Species features have not been added yet.</p>
+            )}
+            {species?.mechanicsStatus === "partial" && (
+              <p className="mt-2 text-xs text-muted">Some selectable traits or special actions may still need manual handling.</p>
+            )}
+            {species?.mechanicsStatus === "roster-only" && (
+              <p className="mt-2 text-xs text-muted">Only the species name and source link are currently included.</p>
+            )}
+        </section>
 
 
         <div className="grid gap-5 md:grid-cols-2">
@@ -374,54 +436,149 @@ export function Sheet() {
           </section>
 
           <div className="space-y-5">
+            {spellPools.length > 0 && (
+              <section className="panel space-y-3">
+                <h2 className="panel-title !mb-0">Spell slots</h2>
+                {spellPools.map((pool) => (
+                  <div key={pool.key} className="flex flex-wrap items-center gap-3">
+                    <span className="min-w-32 text-sm font-medium">
+                      {pool.label} · Level {pool.level}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from({ length: pool.total }, (_, i) => (
+                        <input
+                          key={i}
+                          type="checkbox"
+                          className="h-4 w-4"
+                          aria-label={`${pool.label}, level ${pool.level}, slot ${i + 1} used`}
+                          checked={i < pool.used}
+                          onChange={() => setResourceUsed(pool.key, i < pool.used ? i : i + 1)}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted">{pool.total - pool.used} / {pool.total} available</span>
+                  </div>
+                ))}
+              </section>
+            )}
             {c.classes.map((k) => {
               const def = CLASSES[k.classId];
-              const resources = def.resources.filter((r) => k.level >= (r.minLevel ?? 1));
-              const sub = def.subclasses[c.ruleset].find((s) => s.id === k.subclassId);
+              const resources = classResourcePools.filter((resource) => resource.classId === k.classId);
+              const actions = classActions(c).filter((action) => action.classId === k.classId);
+              const sub = def?.subclasses[c.ruleset].find((s) => s.id === k.subclassId);
+              const rosterSubName = rosterSubclassName(k.classId, k.subclassId);
               return (
                 <section key={k.classId} className="panel">
                   <h2 className="panel-title !mb-1">
-                    {def.name} {k.level}
+                    {className(k.classId)} {k.level}
                   </h2>
-                  {sub && <div className="mb-3 text-sm text-muted">{sub.name}</div>}
+                  {(sub?.name ?? rosterSubName) && (
+                    <div className="mb-3 text-sm text-muted">{sub?.name ?? rosterSubName}</div>
+                  )}
+                  {(() => {
+                    const choices = c.classChoices ?? {};
+                    const styleId = choices[fightingStyleKey(k.classId)]?.[0];
+                    const style = styleId && fightingStyleOptions(k.classId, c.ruleset).find((option) => option.id === styleId);
+                    const cantrips = (choices[fightingStyleCantripsKey(k.classId)] ?? [])
+                      .map((id) => cantripOptionsForStyle(styleId ?? "", c.ruleset).find((option) => option.id === id)?.label)
+                      .filter((name): name is string => Boolean(name));
+                    const expertise = choices[expertiseKey(k.classId)] ?? [];
+                    if (!style && expertise.length === 0) return null;
+                    return (
+                      <div className="mb-3 rounded-md border border-line p-3 text-sm">
+                        {style && (
+                          <>
+                            <div className="font-semibold">Fighting Style: {style.label}</div>
+                            <div className="text-muted">{style.description}</div>
+                            {cantrips.length > 0 && <div className="mt-1">Cantrips chosen: {cantrips.join(", ")} (casting not implemented)</div>}
+                          </>
+                        )}
+                        {expertise.length > 0 && (
+                          <div className="mt-1">
+                            Expertise: {expertise.map((skill) => label(skill)).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <details className="mb-3 text-sm">
+                    <summary className="cursor-pointer text-muted">Full subclass roster (reference only)</summary>
+                    <p className="mt-1 text-muted">{rosterSubclassNames(k.classId).join(", ") || "None listed"}</p>
+                    <p className="mt-1 text-xs text-muted">Additional subclass mechanics are being implemented.</p>
+                  </details>
+                  {actions.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {actions.map((action) => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          className="btn"
+                          disabled={!canUseClassAction(c, action)}
+                          onClick={() => setActionOpen(action)}
+                        >
+                          {action.label}{action.rollFormula ? ` · ${action.rollFormula}` : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!def && (
+                    <p className="mb-3 text-sm text-muted">
+                      Core class statistics, hit dice, spell slots, and class resources are applied. Additional feature effects are being implemented.
+                    </p>
+                  )}
                   {resources.map((r) => {
-                    const max = r.max(k.level, c.ruleset);
+                    const max = r.total;
                     const shown = Math.min(max, 12);
-                    const used = Math.min(c.resourcesUsed[r.id] ?? 0, shown);
                     const isRage = r.id === "rage";
                     return (
                       <div key={r.id} className="mb-3">
                         <div className="text-sm font-medium">
-                          {r.label}
+                          {r.label}{r.unit === "points" && ` · ${max - r.used} / ${max}`}
                           {isRage && <span className="ml-2 text-xs text-muted">(use the Rage toggle above)</span>}
                         </div>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {Array.from({ length: shown }, (_, i) => (
-                            <input
-                              key={i}
-                              type="checkbox"
-                              className="h-4 w-4"
-                              aria-label={`${r.label} ${i + 1} used`}
-                              checked={i < used}
-                              disabled={isRage}
-                              onChange={() => setResourceUsed(r.id, i < used ? i : i + 1)}
-                            />
-                          ))}
-                          {!Number.isFinite(max) && <span className="text-xs text-muted">Unlimited</span>}
-                        </div>
+                        {r.unit === "points" ? (
+                          <input
+                            type="number"
+                            className="field mt-1 w-24"
+                            min={0}
+                            max={max}
+                            value={r.used}
+                            aria-label={`${r.label} spent`}
+                            onChange={(e) => setResourceUsed(r.id, Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
+                          />
+                        ) : (
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {Array.from({ length: shown }, (_, i) => (
+                              <input
+                                key={i}
+                                type="checkbox"
+                                className="h-4 w-4"
+                                aria-label={`${r.label} ${i + 1} used`}
+                                checked={i < r.used}
+                                disabled={isRage}
+                                onChange={() => setResourceUsed(r.id, i < r.used ? i : i + 1)}
+                              />
+                            ))}
+                            {!Number.isFinite(max) && <span className="text-xs text-muted">Unlimited</span>}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-                  <ul className="space-y-2">
-                    {def.features
-                      .filter((f) => f.level <= k.level && (!f.rulesets || f.rulesets.includes(c.ruleset)))
-                      .map((f) => (
-                        <li key={f.name}>
-                          <div className="font-semibold">{f.name}</div>
-                          <div className="text-sm text-muted">{f.description}</div>
-                        </li>
-                      ))}
-                  </ul>
+                  {def ? (
+                    <ul className="space-y-2">
+                      {def.features
+                        .filter((f) => f.level <= k.level && (!f.rulesets || f.rulesets.includes(c.ruleset)))
+                        .map((f) => (
+                          <li key={f.name}>
+                            <div className="font-semibold">{f.name}</div>
+                            <div className="text-sm text-muted">{f.description}</div>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted">Core class feature actions and their roll prompts will appear here as they are implemented.</p>
+                  )}
                 </section>
               );
             })}
